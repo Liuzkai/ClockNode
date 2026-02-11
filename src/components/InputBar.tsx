@@ -7,6 +7,7 @@ import { Box, Text } from 'ink';
 import TextInput from 'ink-text-input';
 import type { NotificationMessage } from '../types.js';
 import { matchCommands, type CommandDef } from '../commands.js';
+import { icons } from '../icons.js';
 
 interface InputBarProps {
   value: string;
@@ -91,7 +92,7 @@ export const InputBar: React.FC<InputBarProps> = ({
       {/* Notification */}
       {showNotif && (
         <Box>
-          <Text color="yellow"> ℹ {notification!.text}</Text>
+          <Text color="yellow"> {icons.info} {notification!.text}</Text>
         </Box>
       )}
 
@@ -119,7 +120,7 @@ export const InputBar: React.FC<InputBarProps> = ({
             return (
               <Box key={cmd.name}>
                 <Text color={isSelected ? 'cyanBright' : 'gray'}>
-                  {isSelected ? ' ▸ ' : '   '}
+                  {isSelected ? ` ${icons.pointer} ` : '   '}
                 </Text>
                 <Text color={isSelected ? 'cyanBright' : 'white'} bold={isSelected}>
                   {`/${cmd.name}`}
@@ -146,7 +147,7 @@ export const InputBar: React.FC<InputBarProps> = ({
 
       {/* Input line */}
       <Box>
-        <Text color="magentaBright" bold>{'❯ '}</Text>
+        <Text color="magentaBright" bold>{`${icons.prompt} `}</Text>
         <TextInput
           key={inputKey}
           value={value}

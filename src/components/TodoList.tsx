@@ -6,6 +6,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import { type TodoItem, TodoStatus, type TodoCountdownState } from '../types.js';
 import { formatTime, priorityLabel } from '../utils.js';
+import { icons } from '../icons.js';
 
 interface TodoListProps {
   todos: TodoItem[];
@@ -16,9 +17,9 @@ interface TodoListProps {
 
 const statusIcon = (status: TodoStatus): string => {
   switch (status) {
-    case TodoStatus.Done: return '✅';
-    case TodoStatus.InProgress: return '▶️';
-    case TodoStatus.Pending: return '⬜';
+    case TodoStatus.Done: return icons.done;
+    case TodoStatus.InProgress: return icons.inProgress;
+    case TodoStatus.Pending: return icons.pending;
   }
 };
 
@@ -32,7 +33,7 @@ export const TodoList: React.FC<TodoListProps> = ({
     return (
       <Box flexDirection="column" paddingX={1}>
         <Text color="gray" dimColor>
-          ─── TODO List (empty) ───
+          {icons.hLine}{icons.hLine}{icons.hLine} TODO List (empty) {icons.hLine}{icons.hLine}{icons.hLine}
         </Text>
         <Text color="gray" dimColor>
           Type a task to add, e.g.: "Buy groceries @30"
@@ -48,9 +49,9 @@ export const TodoList: React.FC<TodoListProps> = ({
   return (
     <Box flexDirection="column" paddingX={1}>
       <Box>
-        <Text color="cyan" bold>─── TODO List </Text>
+        <Text color="cyan" bold>{icons.hLine}{icons.hLine}{icons.hLine} TODO List </Text>
         <Text color="gray">({todos.length} items)</Text>
-        <Text color="cyan" bold> ───</Text>
+        <Text color="cyan" bold> {icons.hLine}{icons.hLine}{icons.hLine}</Text>
       </Box>
 
       {hasBefore && (

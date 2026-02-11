@@ -24,6 +24,7 @@ import {
   clearDone,
 } from './store.js';
 import { TodoStatus } from './types.js';
+import { icons } from './icons.js';
 
 interface CliResult {
   success: boolean;
@@ -157,9 +158,9 @@ export function handleBatchCli(args: string[]): CliResult[] | null {
       } else {
         const lines = todos.map((t, i) => {
           const idx = String(i + 1).padStart(2, ' ');
-          const status = t.status === TodoStatus.Done ? '✅'
-            : t.status === TodoStatus.InProgress ? '▶️'
-            : '⬜';
+          const status = t.status === TodoStatus.Done ? icons.done
+            : t.status === TodoStatus.InProgress ? icons.inProgress
+            : icons.pending;
           const dur = `@${t.duration}m`;
           return `${idx}. ${status} ${t.content} ${dur}`;
         });

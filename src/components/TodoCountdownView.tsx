@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { formatTime, renderProgressBar } from '../utils.js';
 import type { TodoCountdownState, TodoItem, AppConfig } from '../types.js';
+import { icons } from '../icons.js';
 
 interface TodoCountdownViewProps {
   state: TodoCountdownState;
@@ -47,9 +48,9 @@ export const TodoCountdownView: React.FC<TodoCountdownViewProps> = ({
   return (
     <Box flexDirection="column" paddingX={1}>
       <Box>
-        <Text color="cyan" bold>  📋 Task </Text>
+        <Text color="cyan" bold>  {icons.todoTimer} Task </Text>
         <Text color="white">({state.currentIndex + 1}/{state.queue.length})</Text>
-        <Text color="gray"> │ </Text>
+        <Text color="gray"> {icons.separator} </Text>
         <Text color="yellowBright" bold>{currentTodo?.content || '?'}</Text>
       </Box>
 
@@ -57,7 +58,7 @@ export const TodoCountdownView: React.FC<TodoCountdownViewProps> = ({
         <Text>{'  '}</Text>
         {isOvertime ? (
           <>
-            <Text color="redBright" bold>⚠ OVERTIME </Text>
+            <Text color="redBright" bold>{icons.warning} OVERTIME </Text>
             <Text color="red" bold>{formatTime(remaining)}</Text>
           </>
         ) : (
@@ -71,7 +72,7 @@ export const TodoCountdownView: React.FC<TodoCountdownViewProps> = ({
         <Text color="gray">
           {'  '}
           {state.waitingForAction
-            ? '⏸ Action needed: /ok done · /ps skip'
+            ? `${icons.pause} Action needed: /ok done · /ps skip`
             : state.running
             ? '(running)'
             : '(paused)'}

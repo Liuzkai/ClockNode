@@ -7,6 +7,7 @@ import { Box, Text } from 'ink';
 import { formatTime, renderProgressBar } from '../utils.js';
 import type { CountdownState, AppConfig } from '../types.js';
 import { COUNTDOWN_PRESETS } from '../types.js';
+import { icons } from '../icons.js';
 
 interface CountdownProps {
   state: CountdownState;
@@ -45,12 +46,12 @@ export const Countdown: React.FC<CountdownProps> = ({ state, config }) => {
     return (
       <Box flexDirection="column" paddingX={1}>
         <Box>
-          <Text color="cyan" bold>  ⏳ Countdown </Text>
-          <Text color="gray">─ Select a preset or custom time</Text>
+          <Text color="cyan" bold>  {icons.countdown} Countdown </Text>
+          <Text color="gray">{icons.hLine} Select a preset or custom time</Text>
         </Box>
         <Box>
           <Text color="gray">
-            {'  '}Presets: {presetStr} │ /cd {'<'}minutes{'>'} for custom
+            {'  '}Presets: {presetStr} {icons.separator} /cd {'<'}minutes{'>'} for custom
           </Text>
         </Box>
       </Box>
@@ -60,7 +61,7 @@ export const Countdown: React.FC<CountdownProps> = ({ state, config }) => {
   return (
     <Box flexDirection="column" paddingX={1}>
       <Box>
-        <Text color="cyan" bold>  ⏳ </Text>
+        <Text color="cyan" bold>  {icons.countdown} </Text>
         <Text color={remaining <= 10 && remaining > 0 ? 'redBright' : 'greenBright'} bold>
           {formatTime(remaining)}
         </Text>

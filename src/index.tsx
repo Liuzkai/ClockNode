@@ -7,6 +7,7 @@ import React from 'react';
 import { render } from 'ink';
 import { App } from './components/App.js';
 import { handleBatchCli } from './cli.js';
+import { icons } from './icons.js';
 
 // Parse CLI arguments
 const args = process.argv.slice(2);
@@ -52,10 +53,13 @@ if (args.includes('--help') || args.includes('-h')) {
 const batchResults = handleBatchCli(args);
 if (batchResults) {
   for (const r of batchResults) {
-    console.log(r.success ? `✅ ${r.message}` : `❌ ${r.message}`);
+    console.log(r.success ? `${icons.check} ${r.message}` : `${icons.cross} ${r.message}`);
   }
   process.exit(batchResults.every(r => r.success) ? 0 : 1);
 }
+
+// Clear screen before rendering interactive UI
+process.stdout.write('\x1B[2J\x1B[0f');
 
 // Render the Ink app (interactive mode)
 const { waitUntilExit } = render(React.createElement(App));

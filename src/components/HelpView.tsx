@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { Box, Text } from 'ink';
+import { icons } from '../icons.js';
 
 export const HelpView: React.FC = () => {
   const commands = [
@@ -50,7 +51,7 @@ export const HelpView: React.FC = () => {
 
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Text color="cyan" bold>{'─── ClockNode Help ───'}</Text>
+      <Text color="cyan" bold>{`${icons.hLine}${icons.hLine}${icons.hLine} ClockNode Help ${icons.hLine}${icons.hLine}${icons.hLine}`}</Text>
       {commands.map(([section, cmds], i) => (
         <Box key={i} flexDirection="column" marginTop={1}>
           <Text color="yellow" bold>{section as string}</Text>

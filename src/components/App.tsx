@@ -40,6 +40,7 @@ import {
 import { parseInput } from '../parser.js';
 import { triggerNotification } from '../notify.js';
 import { formatTime } from '../utils.js';
+import { icons } from '../icons.js';
 import { Clock } from './Clock.js';
 import { Timer } from './Timer.js';
 import { Countdown } from './Countdown.js';
@@ -141,7 +142,7 @@ export const App: React.FC = () => {
             running: false,
             remainingSeconds: 0,
           }));
-          notify('⏰ Countdown finished!');
+          notify(`${icons.clock} Countdown finished!`);
           triggerNotification(config, 'ClockNode', 'Countdown finished!');
         }
       }
@@ -172,7 +173,7 @@ export const App: React.FC = () => {
           const t = todosRef.current.find(x => x.id === id);
           const taskName = t?.content || '?';
           triggerNotification(config, 'ClockNode', `Task "${taskName}" time is up!`);
-          notify(`⏰ Task time is up! Use /ok to complete or /ps to skip`);
+          notify(`${icons.clock} Task time is up! Use /ok to complete or /ps to skip`);
         }
 
         setTodoCountdown(s => {
@@ -264,7 +265,7 @@ export const App: React.FC = () => {
         }
         setInputValue('');
         if (added > 0) {
-          notify(`✅ Added ${added} tasks from paste`);
+          notify(`${icons.check} Added ${added} tasks from paste`);
         }
         return;
       }
@@ -330,14 +331,14 @@ export const App: React.FC = () => {
     }
 
     if (skippedNames.length > 0) {
-      notify(`⏭ Skipped: ${skippedNames.join(', ')}`);
+      notify(`${icons.skip} Skipped: ${skippedNames.join(', ')}`);
     }
 
     if (nextIndex >= currentState.queue.length) {
       // All done
       setTodoCountdown(null);
       setMode(Mode.Clock);
-      notify('🎉 All tasks completed!');
+      notify(`${icons.party} All tasks completed!`);
       triggerNotification(config, 'ClockNode', 'All tasks completed!');
       return;
     }
@@ -368,7 +369,7 @@ export const App: React.FC = () => {
     ));
 
     const resumeHint = alreadySpent > 0 ? ` (resuming from ${formatTime(alreadySpent)})` : '';
-    notify(`▶ Next task: ${nextTodo?.content || '?'}${resumeHint}`);
+    notify(`${icons.play} Next task: ${nextTodo?.content || '?'}${resumeHint}`);
   };
 
   /**
@@ -397,7 +398,7 @@ export const App: React.FC = () => {
     if (confirmTimerRef.current) clearInterval(confirmTimerRef.current);
 
     // Show initial notification
-    notify(`⚠ ${warningMsg} — repeat to confirm (${duration}s)`);
+    notify(`${icons.warning} ${warningMsg} — repeat to confirm (${duration}s)`);
 
     // Update countdown every second
     confirmTimerRef.current = setInterval(() => {
@@ -411,7 +412,7 @@ export const App: React.FC = () => {
         }
         setNotification(null);
       } else {
-        setNotification({ text: `⚠ ${warningMsg} — repeat to confirm (${remaining}s)`, timestamp: Date.now() });
+        setNotification({ text: `${icons.warning} ${warningMsg} — repeat to confirm (${remaining}s)`, timestamp: Date.now() });
       }
     }, 1000);
 
@@ -439,7 +440,7 @@ export const App: React.FC = () => {
     if (parsed.type === 'todo') {
       const todo = createTodo(parsed.content, parsed.duration);
       setTodos(prev => insertTodo(prev, todo, parsed.position));
-      notify(`✅ Added: "${parsed.content}" (@${parsed.duration}m)`);
+      notify(`${icons.check} Added: "${parsed.content}" (@${parsed.duration}m)`);
       return;
     }
 
@@ -489,7 +490,7 @@ export const App: React.FC = () => {
             running: true,
             startedAt: Date.now(),
           }));
-          notify('⏱ Timer started');
+          notify(`${icons.timer} Timer started`);
         }
         break;
       }
@@ -519,7 +520,7 @@ export const App: React.FC = () => {
           remainingSeconds: totalSec,
           startedAt: Date.now(),
         });
-        notify(`⏳ Countdown: ${minutes} minutes`);
+        notify(`${icons.countdown} Countdown: ${minutes} minutes`);
         break;
       }
 
@@ -529,7 +530,7 @@ export const App: React.FC = () => {
           const now = Date.now();
           const elapsed = timerState.elapsed + (timerState.startedAt ? now - timerState.startedAt : 0);
           setTimerState({ running: false, elapsed });
-          notify('⏸ Timer paused');
+          notify(`${icons.pause} Timer paused`);
         }
         if (mode === Mode.Countdown && countdownState.running) {
           const elapsed = countdownState.startedAt
@@ -543,7 +544,7 @@ export const App: React.FC = () => {
             pausedRemaining: Math.max(0, rem),
             startedAt: undefined,
           }));
-          notify('⏸ Countdown paused');
+          notify(`${icons.pause} Countdown paused`);
         }
         if (mode === Mode.TodoCountdown && todoCountdown?.running) {
           const elapsed = todoCountdown.startedAt
@@ -558,7 +559,7 @@ export const App: React.FC = () => {
             pausedRemaining: rem,
             startedAt: undefined,
           }) : null);
-          notify('⏸ Task countdown paused');
+          notify(`${icons.pause} Task countdown paused`);
         }
         break;
       }
@@ -567,7 +568,7 @@ export const App: React.FC = () => {
       case 'resume': {
         if (mode === Mode.Timer && !timerState.running && timerState.elapsed > 0) {
           setTimerState(s => ({ ...s, running: true, startedAt: Date.now() }));
-          notify('▶ Timer resumed');
+          notify(`${icons.play} Timer resumed`);
         }
         if (mode === Mode.Countdown && !countdownState.running && countdownState.remainingSeconds > 0) {
           setCountdownState(s => ({
@@ -576,7 +577,7 @@ export const App: React.FC = () => {
             startedAt: Date.now(),
             pausedRemaining: s.remainingSeconds,
           }));
-          notify('▶ Countdown resumed');
+          notify(`${icons.play} Countdown resumed`);
         }
         if (mode === Mode.TodoCountdown && todoCountdown && !todoCountdown.running) {
           setTodoCountdown(s => s ? ({
@@ -585,7 +586,7 @@ export const App: React.FC = () => {
             startedAt: Date.now(),
             pausedRemaining: s.remainingSeconds,
           }) : null);
-          notify('▶ Task countdown resumed');
+          notify(`${icons.play} Task countdown resumed`);
         }
         break;
       }
@@ -594,11 +595,11 @@ export const App: React.FC = () => {
       case 'stop': {
         if (mode === Mode.Timer) {
           setTimerState({ running: false, elapsed: 0 });
-          notify('⏹ Timer reset');
+          notify(`${icons.stop} Timer reset`);
         }
         if (mode === Mode.Countdown) {
           setCountdownState({ running: false, totalSeconds: 0, remainingSeconds: 0 });
-          notify('⏹ Countdown stopped');
+          notify(`${icons.stop} Countdown stopped`);
         }
         if (mode === Mode.TodoCountdown && todoCountdown) {
           // Record actual time for current task
@@ -609,7 +610,7 @@ export const App: React.FC = () => {
           ));
           setTodoCountdown(null);
           setMode(Mode.Clock);
-          notify('⏹ Todo countdown stopped');
+          notify(`${icons.stop} Todo countdown stopped`);
         }
         break;
       }
@@ -760,7 +761,7 @@ export const App: React.FC = () => {
           setMode(Mode.Clock);
         }
         setTodos(prev => resetAll(prev));
-        notify('🔄 All tasks reset to pending');
+        notify(`${icons.reset} All tasks reset to pending`);
         break;
       }
 
@@ -872,7 +873,7 @@ export const App: React.FC = () => {
             waitingForAction: remainSec <= 0,
           });
           const resumeHint = alreadySpent > 0 ? ` (resuming from ${formatTime(alreadySpent)})` : '';
-          notify(`▶ Started: ${firstTodo.content} (${firstTodo.duration || 60}m)${resumeHint}`);
+          notify(`${icons.play} Started: ${firstTodo.content} (${firstTodo.duration || 60}m)${resumeHint}`);
         }
         break;
       }
@@ -881,7 +882,7 @@ export const App: React.FC = () => {
       case 'pass': {
         if (mode === Mode.TodoCountdown && todoCountdown) {
           advanceTodoCountdown(todoCountdown, false);
-          notify('⏭ Skipped current task');
+          notify(`${icons.skip} Skipped current task`);
         }
         break;
       }
@@ -894,10 +895,10 @@ export const App: React.FC = () => {
   }, [mode, timerState, countdownState, todoCountdown, todos, config, exit]);
 
   const modeNames: Record<number, string> = {
-    [Mode.Clock]: '🕐 Clock',
-    [Mode.Timer]: '⏱ Timer',
-    [Mode.Countdown]: '⏳ Countdown',
-    [Mode.TodoCountdown]: '📋 Todo Timer',
+    [Mode.Clock]: `${icons.clockMode} Clock`,
+    [Mode.Timer]: `${icons.timer} Timer`,
+    [Mode.Countdown]: `${icons.countdown} Countdown`,
+    [Mode.TodoCountdown]: `${icons.todoTimer} Todo Timer`,
   };
 
   return (
@@ -905,12 +906,12 @@ export const App: React.FC = () => {
       {/* Header */}
       <Box paddingX={1}>
         <Text color="magentaBright" bold>ClockNode</Text>
-        <Text color="gray"> │ </Text>
+        <Text color="gray"> {icons.separator} </Text>
         <Text color="cyan">{modeNames[mode]}</Text>
-        <Text color="gray"> │ /h for help</Text>
+        <Text color="gray"> {icons.separator} /h for help</Text>
       </Box>
       <Box paddingX={1}>
-        <Text color="gray">{'─'.repeat(50)}</Text>
+        <Text color="gray">{icons.hLine.repeat(50)}</Text>
       </Box>
 
       {/* Clock always visible */}
@@ -919,27 +920,27 @@ export const App: React.FC = () => {
       {/* Mode-specific display */}
       {mode === Mode.Timer && (
         <>
-          <Box paddingX={1}><Text color="gray">{'─'.repeat(50)}</Text></Box>
+          <Box paddingX={1}><Text color="gray">{icons.hLine.repeat(50)}</Text></Box>
           <Timer state={timerState} />
         </>
       )}
 
       {mode === Mode.Countdown && (
         <>
-          <Box paddingX={1}><Text color="gray">{'─'.repeat(50)}</Text></Box>
+          <Box paddingX={1}><Text color="gray">{icons.hLine.repeat(50)}</Text></Box>
           <Countdown state={countdownState} config={config} />
         </>
       )}
 
       {mode === Mode.TodoCountdown && todoCountdown && (
         <>
-          <Box paddingX={1}><Text color="gray">{'─'.repeat(50)}</Text></Box>
+          <Box paddingX={1}><Text color="gray">{icons.hLine.repeat(50)}</Text></Box>
           <TodoCountdownView state={todoCountdown} todos={todos} config={config} />
         </>
       )}
 
       {/* Separator */}
-      <Box paddingX={1}><Text color="gray">{'─'.repeat(50)}</Text></Box>
+      <Box paddingX={1}><Text color="gray">{icons.hLine.repeat(50)}</Text></Box>
 
       {/* Help or TODO list */}
       {showHelp ? (
@@ -954,9 +955,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Separator */}
-      <Box paddingX={1}><Text color="gray">{'─'.repeat(50)}</Text></Box>
-
-      {/* Input bar */}
+      <Box paddingX={1}><Text color="gray">{icons.hLine.repeat(50)}</Text></Box>
       <InputBar
         value={inputValue}
         onChange={handleInputChange}

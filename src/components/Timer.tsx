@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Box, Text } from 'ink';
 import { formatMs } from '../utils.js';
 import type { TimerState } from '../types.js';
+import { icons } from '../icons.js';
 
 interface TimerProps {
   state: TimerState;
@@ -32,7 +33,7 @@ export const Timer: React.FC<TimerProps> = ({ state }) => {
   return (
     <Box flexDirection="column" paddingX={1}>
       <Box>
-        <Text color="cyan" bold>  ⏱  </Text>
+        <Text color="cyan" bold>  {icons.timer}  </Text>
         <Text color={state.running ? 'greenBright' : 'yellow'} bold>
           {display}
         </Text>

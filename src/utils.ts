@@ -3,6 +3,7 @@
 // ============================================================
 
 import { PROGRESS_THEMES, type AppConfig } from './types.js';
+import { icons } from './icons.js';
 
 /**
  * Format seconds into HH:MM:SS
@@ -78,9 +79,9 @@ export function getClockDisplay(): { date: string; time: string; weekday: string
  */
 export function priorityLabel(p: string): string {
   switch (p) {
-    case 'high': return '🔴';
-    case 'mid': return '🟡';
-    case 'low': return '🔵';
+    case 'high': return icons.high;
+    case 'mid': return icons.mid;
+    case 'low': return icons.low;
     default: return '  ';
   }
 }

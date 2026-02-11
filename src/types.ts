@@ -55,17 +55,28 @@ export interface ProgressBarTheme {
   empty: string;
 }
 
+import { supportsEmoji } from './icons.js';
+
 /** Built-in progress bar themes */
-export const PROGRESS_THEMES: ProgressBarTheme[] = [
-  { name: 'classic', filled: '█', empty: '░' },
-  { name: 'block', filled: '■', empty: '□' },
-  { name: 'circle', filled: '●', empty: '○' },
-  { name: 'shade', filled: '▓', empty: '░' },
-  { name: 'arrow', filled: '▸', empty: '▹' },
-  { name: 'star', filled: '★', empty: '☆' },
-  { name: 'diamond', filled: '◆', empty: '◇' },
-  { name: 'heart', filled: '♥', empty: '♡' },
-];
+export const PROGRESS_THEMES: ProgressBarTheme[] = supportsEmoji
+  ? [
+      { name: 'classic', filled: '█', empty: '░' },
+      { name: 'block', filled: '■', empty: '□' },
+      { name: 'circle', filled: '●', empty: '○' },
+      { name: 'shade', filled: '▓', empty: '░' },
+      { name: 'arrow', filled: '▸', empty: '▹' },
+      { name: 'star', filled: '★', empty: '☆' },
+      { name: 'diamond', filled: '◆', empty: '◇' },
+      { name: 'heart', filled: '♥', empty: '♡' },
+    ]
+  : [
+      { name: 'classic', filled: '#', empty: '-' },
+      { name: 'block', filled: '#', empty: '.' },
+      { name: 'arrow', filled: '=', empty: ' ' },
+      { name: 'hash', filled: '#', empty: ' ' },
+      { name: 'dot', filled: '.', empty: ' ' },
+      { name: 'pipe', filled: '|', empty: ' ' },
+    ];
 
 /** Application configuration */
 export interface AppConfig {
