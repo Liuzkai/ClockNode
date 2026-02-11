@@ -161,6 +161,18 @@ export interface ParsedTodo {
 
 export type ParsedInput = ParsedCommand | ParsedTodo;
 
+/** A completed task record (persisted in done history) */
+export interface DoneRecord {
+  id: string;
+  content: string;
+  /** Actual time spent in seconds */
+  actualTime: number;
+  /** Duration in minutes (original estimate) */
+  duration: number;
+  tags: string[];
+  completedAt: string;
+}
+
 /** Notification message */
 export interface NotificationMessage {
   text: string;

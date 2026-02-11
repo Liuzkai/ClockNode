@@ -5,10 +5,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { type TodoItem, TodoStatus, Priority } from './types.js';
+import { type TodoItem, type DoneRecord, TodoStatus, Priority } from './types.js';
 
 const CONFIG_DIR = path.join(os.homedir(), '.clocknode');
 const TODOS_FILE = path.join(CONFIG_DIR, 'todos.json');
+const DONE_HISTORY_FILE = path.join(CONFIG_DIR, 'done_history.json');
 
 /** Expose the todos file path for external file watching */
 export const TODOS_FILE_PATH = TODOS_FILE;
@@ -178,4 +179,58 @@ export function resetAll(todos: TodoItem[]): TodoItem[] {
     actualTime: undefined,
     completedAt: undefined,
   }));
+}
+
+// ============================================================
+// Done History (persisted to ~/.clocknode/done_history.json)
+// ============================================================
+
+export function loadDoneHistory(): DoneRecord[] {
+  ensureDir();
+  try {
+    if (fs.existsSync(DONE_HISTORY_FILE)) {
+      const raw = fs.readFileSync(DONE_HISTORY_FILE, 'utf-8');
+      return JSON.parse(raw);
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+export function saveDoneHistory(records: DoneRecord[]): void {
+  ensureDir();
+  fs.writeFileSync(DONE_HISTORY_FILE, JSON.stringify(records, null, 2), 'utf-8');
+}
+
+export function addDoneRecord(todo: TodoItem): void {
+  const records = loadDoneHistory();
+  // Avoid duplicate records for the same todo id
+  if (records.some(r => r.id === todo.id)) return;
+  const record: DoneRecord = {
+    id: todo.id,
+    content: todo.content,
+    actualTime: todo.actualTime || 0,
+    duration: todo.duration,
+    tags: [...todo.tags],
+    completedAt: todo.completedAt || new Date().toISOString(),
+  };
+  records.push(record);
+  saveDoneHistory(records);
+}
+
+export function deleteDoneRecord(records: DoneRecord[], index: number): DoneRecord[] {
+  if (index < 1 || index > records.length) return records;
+  const newRecords = [...records];
+  newRecords.splice(index - 1, 1);
+  return newRecords;
+}
+
+export function deleteDoneRecordRange(records: DoneRecord[], from: number, to: number): DoneRecord[] {
+  const start = Math.max(1, Math.min(from, to));
+  const end = Math.min(records.length, Math.max(from, to));
+  if (start > records.length || end < 1) return records;
+  const newRecords = [...records];
+  newRecords.splice(start - 1, end - start + 1);
+  return newRecords;
 }
