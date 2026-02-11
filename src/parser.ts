@@ -29,6 +29,8 @@ const ALIASES: Record<string, string> = {
   'cl': 'clear',
   'rs': 'reset',
   'q': 'quit',
+  'hi': 'history',
+  'b': 'back',
 };
 
 /**

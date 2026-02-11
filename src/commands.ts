@@ -95,8 +95,8 @@ export const COMMANDS: CommandDef[] = [
   {
     name: 'delete',
     aliases: ['d'],
-    usage: '/delete <N|*>',
-    description: 'Delete TODO item (* = delete all)',
+    usage: '/delete <N|N-M|*>',
+    description: 'Delete TODO item (N-M = range, * = all)',
   },
   {
     name: 'edit',
@@ -133,6 +133,18 @@ export const COMMANDS: CommandDef[] = [
     aliases: ['rs'],
     usage: '/reset',
     description: 'Reset all TODOs to pending (clear progress & status)',
+  },
+  {
+    name: 'history',
+    aliases: ['hi'],
+    usage: '/history',
+    description: 'Show/hide completed tasks history',
+  },
+  {
+    name: 'back',
+    aliases: ['b'],
+    usage: '/back',
+    description: 'Return from history view to TODO list',
   },
 ];
 

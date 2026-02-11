@@ -29,7 +29,7 @@ export const HelpView: React.FC = () => {
       ['<text> [@N]', 'Add TODO (default 60m, @N sets minutes)'],
       ['#N <text> [@M]', 'Insert TODO at position N'],
       ['<text> @0N', 'Add TODO with preset time (01=5m...)'],
-      ['/delete N|*, /d N|*', 'Delete TODO (* = all)'],
+      ['/delete N|N-M|*, /d ..', 'Delete TODO (N-M = range, * = all)'],
       ['/edit N .., /e N ..', 'Edit text | /e N #M move | /e N @M duration'],
       ['/done N|*, /ok N|*', 'Mark done (* = all pending)'],
       ['/undo N|*, /u N|*', 'Undo done (* = all completed)'],
@@ -38,6 +38,8 @@ export const HelpView: React.FC = () => {
       ['/sort BY, /s BY', 'Sort (p=priority s=status c=created)'],
       ['/clear, /cl', 'Clear completed TODOs'],
       ['/reset, /rs', 'Reset all to pending'],
+      ['/history, /hi', 'Show completed tasks history'],
+      ['/back, /b', 'Return from history view'],
     ]],
     ['TODO Countdown', [
       ['/start N,N|*, /st N|*', 'Start countdown (* = all pending)'],
