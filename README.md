@@ -14,6 +14,7 @@ A feature-rich terminal clock, timer, and TODO management tool built with [React
 - **Countdown Timer** — Custom duration or built-in presets (5/10/30/60 min)
 - **TODO List** — Full CRUD with priority, tags, and duration tracking
 - **TODO Countdown Queue** — Sequential task countdowns with overtime tracking, progress recovery, and queue merging
+- **Countdown Persistence** — Timer progress auto-saved on exit (Ctrl+C, close terminal) and periodically; resume from where you left off
 - **Wildcard `*` Support** — Batch operations on all items (`/done *`, `/delete *`, `/start *`, etc.)
 - **Dangerous Op Confirmation** — `/delete *` requires repeat-to-confirm with live countdown
 - **Multi-line Paste** — Paste multiple lines to add multiple tasks at once
@@ -111,7 +112,10 @@ All commands start with `/` in the interactive UI.
 | Command | Alias | Description |
 |---------|-------|-------------|
 | `/delete <N\|*>` | `d` | Delete task #N (`*` = delete all) |
-| `/edit <N> <text>` | `e` | Edit task #N content |
+| `/edit <N>` | `e` | Populate input bar with task info for inline editing |
+| `/edit <N> <text> [@dur]` | `e` | Edit task #N content (and optionally duration) |
+| `/edit <N> #<M>` | `e` | Move task #N to position #M |
+| `/edit <N> @<dur>` | `e` | Change task #N duration |
 | `/done <N\|*>` | `ok` | Mark task done (`*` = all pending) |
 | `/undo <N\|*>` | `u` | Revert to pending (`*` = all completed) |
 | `/tag <N\|*> <tag>` | `t` | Set tag (`*` = all items) |
@@ -147,6 +151,9 @@ Deploy release             # Default 60-minute duration
 
 - **Skip completed**: Already-done tasks are auto-skipped with a notification
 - **Resume progress**: Tasks with prior `actualTime` resume from where they left off
+- **Auto-save on exit**: Countdown progress is saved when the terminal is closed (Ctrl+C, SIGTERM) or `/quit` is used
+- **Periodic save**: `actualTime` is synced to disk every 30 seconds for crash resilience
+- **Overtime resume**: Overtime tasks resume with the correct accumulated overtime when restarted
 - **Queue merging**: Running `/start` while a countdown is active merges queues:
   1. Current task continues
   2. Old queue items not in the new list are retained
@@ -161,6 +168,7 @@ Deploy release             # Default 60-minute duration
 | `Tab` | Accept auto-complete suggestion |
 | `↑` / `↓` | Browse input history / navigate suggestions |
 | `↑` / `↓` (in list) | Scroll TODO list |
+| `Esc` | Clear input bar |
 
 ## Configuration
 
@@ -201,6 +209,7 @@ src/
 ├── store.ts               # TODO CRUD — load/save to ~/.clocknode/todos.json
 ├── config.ts              # Config load/save — ~/.clocknode/config.json
 ├── parser.ts              # Input parser — commands (/cmd) vs TODO items (text @dur)
+├── icons.ts               # Terminal-aware icon/emoji mapping (auto-detects CMD vs modern terminals)
 ├── commands.ts            # Command definitions, aliases, auto-complete matching
 ├── notify.ts              # Notification helpers — BEL sound + node-notifier
 ├── utils.ts               # Formatting (time, progress bar, clock display)

@@ -304,6 +304,12 @@ export const App: React.FC = () => {
         setInputKey(k => k + 1); // force TextInput remount to reset cursor
       }
     }
+    if (key.escape) {
+      setInputValue('');
+      setSelectedSuggestion(0);
+      setHistoryIndex(-1);
+      setInputKey(k => k + 1);
+    }
   });
 
   // Reset suggestion index and history browsing when user types
