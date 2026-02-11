@@ -1,0 +1,33 @@
+{
+  "name": "clocknode",
+  "version": "1.0.0",
+  "description": "A CLI clock tool with timer, countdown, and TODO management",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "clocknode": "dist/index.js",
+    "cn": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.tsx"
+  },
+  "keywords": ["cli", "clock", "timer", "countdown", "todo"],
+  "license": "MIT",
+  "dependencies": {
+    "ink": "^5.1.0",
+    "ink-text-input": "^6.0.0",
+    "react": "^18.3.1",
+    "node-notifier": "^10.0.1",
+    "chalk": "^5.4.1",
+    "cli-cursor": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/node": "^22.10.0",
+    "@types/node-notifier": "^8.0.5",
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0"
+  }
+}
