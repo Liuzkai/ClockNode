@@ -90,6 +90,10 @@ export const App: React.FC = () => {
   // Todo countdown state
   const [todoCountdown, setTodoCountdown] = useState<TodoCountdownState | null>(null);
 
+  // Keep a ref to latest todoCountdown so exit handlers always see fresh state
+  const todoCountdownRef = useRef(todoCountdown);
+  useEffect(() => { todoCountdownRef.current = todoCountdown; }, [todoCountdown]);
+
   // Confirmation for dangerous operations (e.g. /d *, /done *)
   const pendingConfirmRef = useRef<{ cmd: string; expires: number } | null>(null);
   const confirmTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -104,6 +108,42 @@ export const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, [todos]);
   useEffect(() => { saveConfig(config); }, [config]);
+
+  // Save todo countdown progress on process exit (e.g. terminal closed, Ctrl+C)
+  useEffect(() => {
+    const saveCountdownProgress = () => {
+      const state = todoCountdownRef.current;
+      if (!state) return;
+      const currentId = state.queue[state.currentIndex];
+      if (!currentId) return;
+
+      // Calculate actual time spent (including previously accumulated time)
+      const sessionElapsed = state.startedAt
+        ? Math.floor((Date.now() - state.startedAt) / 1000) + (state.totalSeconds - (state.pausedRemaining ?? state.totalSeconds))
+        : 0;
+      const actualTime = state.previousActualTime + sessionElapsed;
+
+      // Read latest todos from file (refs may be stale during exit)
+      const latestTodos = todosRef.current;
+      const updated = latestTodos.map(t =>
+        t.id === currentId ? { ...t, actualTime } : t
+      );
+      saveTodos(updated);
+    };
+
+    const onExit = () => { saveCountdownProgress(); };
+    const onSignal = () => { saveCountdownProgress(); process.exit(0); };
+
+    process.on('beforeExit', onExit);
+    process.on('SIGINT', onSignal);
+    process.on('SIGTERM', onSignal);
+
+    return () => {
+      process.removeListener('beforeExit', onExit);
+      process.removeListener('SIGINT', onSignal);
+      process.removeListener('SIGTERM', onSignal);
+    };
+  }, []);
 
   // Watch todos.json for external changes (batch CLI commands)
   useEffect(() => {
@@ -189,6 +229,25 @@ export const App: React.FC = () => {
     }, 500);
     return () => clearInterval(timer);
   }, [todoCountdown?.running, todoCountdown?.startedAt, todoCountdown?.totalSeconds, todoCountdown?.pausedRemaining, todoCountdown?.overtime]);
+
+  // Periodically save actualTime to disk (every 30s) for crash resilience
+  useEffect(() => {
+    if (!todoCountdown || !todoCountdown.running) return;
+    const timer = setInterval(() => {
+      const state = todoCountdownRef.current;
+      if (!state || !state.running) return;
+      const currentId = state.queue[state.currentIndex];
+      if (!currentId) return;
+      const sessionElapsed = state.startedAt
+        ? Math.floor((Date.now() - state.startedAt) / 1000) + (state.totalSeconds - (state.pausedRemaining ?? state.totalSeconds))
+        : 0;
+      const actualTime = state.previousActualTime + sessionElapsed;
+      setTodos(prev => prev.map(t =>
+        t.id === currentId ? { ...t, actualTime } : t
+      ));
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [todoCountdown?.running, todoCountdown?.currentIndex]);
 
   const notify = useCallback((text: string) => {
     setNotification({ text, timestamp: Date.now() });
@@ -282,10 +341,10 @@ export const App: React.FC = () => {
 
   // Calculate actual time spent for current todo countdown task
   const calcActualTime = (state: TodoCountdownState): number => {
-    const totalElapsed = state.startedAt
+    const sessionElapsed = state.startedAt
       ? Math.floor((Date.now() - state.startedAt) / 1000) + (state.totalSeconds - (state.pausedRemaining ?? state.totalSeconds))
       : 0;
-    return totalElapsed;
+    return state.previousActualTime + sessionElapsed;
   };
 
   // Move to next todo in countdown queue
@@ -348,7 +407,7 @@ export const App: React.FC = () => {
     const nextTodo = latestTodos.find(t => t.id === nextTodoId);
     const nextTotalSec = (nextTodo?.duration || 60) * 60;
     const alreadySpent = nextTodo?.actualTime || 0;
-    const nextRemainSec = Math.max(0, nextTotalSec - alreadySpent);
+    const nextRemainSec = nextTotalSec - alreadySpent;
 
     setTodoCountdown({
       queue: currentState.queue,
@@ -361,6 +420,7 @@ export const App: React.FC = () => {
       startedAt: Date.now(),
       pausedRemaining: nextRemainSec,
       waitingForAction: nextRemainSec <= 0,
+      previousActualTime: alreadySpent,
     });
 
     // Mark the new task as in-progress
@@ -454,6 +514,17 @@ export const App: React.FC = () => {
       }
 
       case 'quit': {
+        // Save countdown progress before exiting
+        if (todoCountdown) {
+          const currentId = todoCountdown.queue[todoCountdown.currentIndex];
+          if (currentId) {
+            const actualTime = calcActualTime(todoCountdown);
+            const updated = todos.map(t =>
+              t.id === currentId ? { ...t, actualTime } : t
+            );
+            saveTodos(updated);
+          }
+        }
         exit();
         break;
       }
@@ -552,6 +623,12 @@ export const App: React.FC = () => {
             : 0;
           const base = todoCountdown.pausedRemaining ?? todoCountdown.totalSeconds;
           const rem = base - elapsed;
+          // Save actualTime on pause so progress persists if terminal is closed
+          const currentId = todoCountdown.queue[todoCountdown.currentIndex];
+          const actualTime = calcActualTime(todoCountdown);
+          setTodos(prev => prev.map(t =>
+            t.id === currentId ? { ...t, actualTime } : t
+          ));
           setTodoCountdown(s => s ? ({
             ...s,
             running: false,
@@ -853,7 +930,7 @@ export const App: React.FC = () => {
           const firstTodo = todos.find(t => t.id === newInputIds[0])!;
           const totalSec = (firstTodo.duration || 60) * 60;
           const alreadySpent = firstTodo.actualTime || 0;
-          const remainSec = Math.max(0, totalSec - alreadySpent);
+          const remainSec = totalSec - alreadySpent;
 
           setTodos(prev => prev.map(t =>
             t.id === newInputIds[0] ? { ...t, status: TodoStatus.InProgress } : t
@@ -871,6 +948,7 @@ export const App: React.FC = () => {
             startedAt: Date.now(),
             pausedRemaining: remainSec,
             waitingForAction: remainSec <= 0,
+            previousActualTime: alreadySpent,
           });
           const resumeHint = alreadySpent > 0 ? ` (resuming from ${formatTime(alreadySpent)})` : '';
           notify(`${icons.play} Started: ${firstTodo.content} (${firstTodo.duration || 60}m)${resumeHint}`);

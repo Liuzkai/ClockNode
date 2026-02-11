@@ -141,6 +141,8 @@ export interface TodoCountdownState {
   pausedRemaining?: number;
   /** Whether waiting for user action after countdown ends */
   waitingForAction: boolean;
+  /** Actual time already accumulated before this session (for resume) */
+  previousActualTime: number;
 }
 
 /** Command parse result */
