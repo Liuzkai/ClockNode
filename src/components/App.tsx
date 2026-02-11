@@ -710,30 +710,49 @@ export const App: React.FC = () => {
 
       case 'edit': {
         const idx = parseInt(args[0], 10);
-        if (!idx) break;
+        if (!idx || idx < 1 || idx > todos.length) break;
         const arg = args[1];
-        if (!arg) break;
 
-        if (arg.startsWith('#')) {
+        // No second arg: populate input bar with task info for editing
+        if (!arg) {
+          const todo = todos[idx - 1];
+          const tagsStr = todo.tags.length > 0 ? ` ${todo.tags.map(t => `#${t}`).join(' ')}` : '';
+          setInputValue(`/e ${idx} ${todo.content}${tagsStr} @${todo.duration}`);
+          setInputKey(k => k + 1);
+          return; // Don't clear input or record to history
+        }
+
+        if (arg.startsWith('#') && !args[2]) {
           // Move: /edit 1 #2
           const toIdx = parseInt(arg.slice(1), 10);
           if (toIdx) {
             setTodos(prev => moveTodo(prev, idx, toIdx));
             notify(`Moved item ${idx} → position ${toIdx}`);
           }
-        } else if (arg.startsWith('@')) {
-          // Change duration: /edit 1 @55
+        } else if (arg.startsWith('@') && !args[2]) {
+          // Change duration only: /edit 1 @55
           const dur = parseInt(arg.slice(1), 10);
           if (dur && dur > 0) {
             setTodos(prev => setDuration(prev, idx, dur));
             notify(`Set item ${idx} duration to ${dur}m`);
           }
         } else {
-          // Edit content: /edit 1 new text
-          const text = args.slice(1).join(' ');
+          // Edit content (and optionally duration): /edit 1 new text @30
+          let text = args.slice(1).join(' ');
+          let newDuration: number | undefined;
+          const durMatch = text.match(/\s+@(\d+)\s*$/);
+          if (durMatch) {
+            newDuration = parseInt(durMatch[1], 10);
+            text = text.slice(0, -durMatch[0].length).trim();
+          }
           if (text) {
-            setTodos(prev => editTodo(prev, idx, text));
-            notify(`Edited item ${idx}`);
+            setTodos(prev => prev.map((t, i) =>
+              i === idx - 1
+                ? { ...t, content: text, ...(newDuration && newDuration > 0 ? { duration: newDuration } : {}) }
+                : t
+            ));
+            const durHint = newDuration ? ` (@${newDuration}m)` : '';
+            notify(`Edited item ${idx}${durHint}`);
           }
         }
         break;
