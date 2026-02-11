@@ -17,6 +17,7 @@ import {
   type CountdownState,
   type TodoCountdownState,
   type NotificationMessage,
+  type DoneRecord,
 } from '../types.js';
 import { loadConfig, saveConfig } from '../config.js';
 import {
@@ -36,6 +37,11 @@ import {
   sortTodos,
   clearDone,
   resetAll,
+  loadDoneHistory,
+  saveDoneHistory,
+  addDoneRecord,
+  deleteDoneRecord,
+  deleteDoneRecordRange,
 } from '../store.js';
 import { parseInput } from '../parser.js';
 import { triggerNotification } from '../notify.js';
@@ -48,6 +54,7 @@ import { TodoList } from './TodoList.js';
 import { TodoCountdownView } from './TodoCountdownView.js';
 import { HelpView } from './HelpView.js';
 import { InputBar, getSuggestions } from './InputBar.js';
+import { DoneHistoryView } from './DoneHistoryView.js';
 
 export const App: React.FC = () => {
   const { exit } = useApp();
@@ -63,6 +70,8 @@ export const App: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const [notification, setNotification] = useState<NotificationMessage | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [showDoneHistory, setShowDoneHistory] = useState(false);
+  const [doneHistory, setDoneHistory] = useState<DoneRecord[]>(loadDoneHistory);
   const [scrollOffset, setScrollOffset] = useState(0);
   const [selectedSuggestion, setSelectedSuggestion] = useState(0);
 
@@ -292,7 +301,8 @@ export const App: React.FC = () => {
           return next;
         });
       } else {
-        setScrollOffset(o => Math.min(Math.max(0, todos.length - 10), o + 1));
+        const maxItems = showDoneHistory ? doneHistory.length : todos.length;
+        setScrollOffset(o => Math.min(Math.max(0, maxItems - 10), o + 1));
       }
     }
     if (key.tab && hasSuggestions) {
@@ -369,6 +379,15 @@ export const App: React.FC = () => {
           }
         : t
     ));
+
+    // Record to done history when marking complete
+    if (markComplete) {
+      const todo = todosRef.current.find(t => t.id === currentId);
+      if (todo) {
+        addDoneRecord({ ...todo, actualTime, completedAt: new Date().toISOString() });
+        setDoneHistory(loadDoneHistory());
+      }
+    }
 
     const updatedActualTimes = { ...currentState.actualTimes, [currentId]: actualTime };
 
@@ -516,6 +535,7 @@ export const App: React.FC = () => {
     switch (name) {
       case 'help': {
         setShowHelp(h => !h);
+        setShowDoneHistory(false);
         break;
       }
 
@@ -700,15 +720,80 @@ export const App: React.FC = () => {
 
       // TODO commands
       case 'delete': {
+        // In done history mode, delete from history
+        if (showDoneHistory) {
+          if (args[0] === '*') {
+            if (!requireConfirm('delete-history*', `Delete ALL ${doneHistory.length} history records?`)) break;
+            setDoneHistory([]);
+            saveDoneHistory([]);
+            notify('Deleted all history records');
+          } else {
+            const rangeMatch = args[0]?.match(/^(\d+)-(\d+)$/);
+            if (rangeMatch) {
+              const from = parseInt(rangeMatch[1], 10);
+              const to = parseInt(rangeMatch[2], 10);
+              setDoneHistory(prev => {
+                const updated = deleteDoneRecordRange(prev, from, to);
+                saveDoneHistory(updated);
+                return updated;
+              });
+              const count = Math.min(Math.max(from, to), doneHistory.length) - Math.max(1, Math.min(from, to)) + 1;
+              notify(`Deleted history records ${Math.min(from, to)}-${Math.max(from, to)} (${Math.max(0, count)} items)`);
+            } else {
+              const idx = parseInt(args[0], 10);
+              if (idx) {
+                setDoneHistory(prev => {
+                  const updated = deleteDoneRecord(prev, idx);
+                  saveDoneHistory(updated);
+                  return updated;
+                });
+                notify(`Deleted history record ${idx}`);
+              }
+            }
+          }
+          break;
+        }
+
         if (args[0] === '*') {
           if (!requireConfirm('delete*', `Delete ALL ${todos.length} items?`)) break;
+          // Record done items to history before deleting
+          todos.forEach(t => {
+            if (t.status === TodoStatus.Done) addDoneRecord(t);
+          });
+          setDoneHistory(loadDoneHistory());
           setTodos([]);
           notify('Deleted all items');
         } else {
-          const idx = parseInt(args[0], 10);
-          if (idx) {
-            setTodos(prev => deleteTodo(prev, idx));
-            notify(`Deleted item ${idx}`);
+          const rangeMatch = args[0]?.match(/^(\d+)-(\d+)$/);
+          if (rangeMatch) {
+            const from = parseInt(rangeMatch[1], 10);
+            const to = parseInt(rangeMatch[2], 10);
+            const start = Math.max(1, Math.min(from, to));
+            const end = Math.min(todos.length, Math.max(from, to));
+            if (start <= todos.length && end >= 1) {
+              // Record done items to history before deleting
+              for (let i = start - 1; i < end; i++) {
+                if (todos[i].status === TodoStatus.Done) addDoneRecord(todos[i]);
+              }
+              setDoneHistory(loadDoneHistory());
+              setTodos(prev => {
+                const newTodos = [...prev];
+                newTodos.splice(start - 1, end - start + 1);
+                return newTodos;
+              });
+              notify(`Deleted items ${start}-${end} (${end - start + 1} items)`);
+            }
+          } else {
+            const idx = parseInt(args[0], 10);
+            if (idx && idx >= 1 && idx <= todos.length) {
+              // Record done item to history before deleting
+              if (todos[idx - 1].status === TodoStatus.Done) {
+                addDoneRecord(todos[idx - 1]);
+                setDoneHistory(loadDoneHistory());
+              }
+              setTodos(prev => deleteTodo(prev, idx));
+              notify(`Deleted item ${idx}`);
+            }
           }
         }
         break;
@@ -769,14 +854,27 @@ export const App: React.FC = () => {
           // Mark current task done and advance
           advanceTodoCountdown(todoCountdown, true);
         } else if (args[0] === '*') {
-          const count = todos.filter(t => t.status !== TodoStatus.Done).length;
+          const pending = todos.filter(t => t.status !== TodoStatus.Done);
+          const count = pending.length;
+          const now = new Date().toISOString();
+          // Record all newly completed items to done history
+          pending.forEach(t => {
+            addDoneRecord({ ...t, status: TodoStatus.Done, completedAt: now });
+          });
+          setDoneHistory(loadDoneHistory());
           setTodos(prev => prev.map(t => t.status !== TodoStatus.Done
-            ? { ...t, status: TodoStatus.Done, completedAt: new Date().toISOString() }
+            ? { ...t, status: TodoStatus.Done, completedAt: now }
             : t));
           notify(`Completed all ${count} items`);
         } else {
           const idx = parseInt(args[0], 10);
-          if (idx) {
+          if (idx && idx >= 1 && idx <= todos.length) {
+            const todo = todos[idx - 1];
+            if (todo.status !== TodoStatus.Done) {
+              const completedAt = new Date().toISOString();
+              addDoneRecord({ ...todo, status: TodoStatus.Done, completedAt });
+              setDoneHistory(loadDoneHistory());
+            }
             setTodos(prev => markDone(prev, idx));
             notify(`Completed item ${idx}`);
           }
@@ -851,6 +949,11 @@ export const App: React.FC = () => {
       }
 
       case 'clear': {
+        // Record done items to history before clearing
+        todos.forEach(t => {
+          if (t.status === TodoStatus.Done) addDoneRecord(t);
+        });
+        setDoneHistory(loadDoneHistory());
         setTodos(prev => clearDone(prev));
         notify('Cleared completed items');
         break;
@@ -990,12 +1093,30 @@ export const App: React.FC = () => {
         break;
       }
 
+      case 'history': {
+        setShowDoneHistory(h => !h);
+        setShowHelp(false);
+        setScrollOffset(0);
+        if (!showDoneHistory) {
+          setDoneHistory(loadDoneHistory());
+        }
+        break;
+      }
+
+      case 'back': {
+        if (showDoneHistory) {
+          setShowDoneHistory(false);
+          setScrollOffset(0);
+        }
+        break;
+      }
+
       default: {
         notify(`Unknown command: /${name}. Type /h for help.`);
         break;
       }
     }
-  }, [mode, timerState, countdownState, todoCountdown, todos, config, exit]);
+  }, [mode, timerState, countdownState, todoCountdown, todos, config, exit, showDoneHistory, doneHistory]);
 
   const modeNames: Record<number, string> = {
     [Mode.Clock]: `${icons.clockMode} Clock`,
@@ -1045,9 +1166,15 @@ export const App: React.FC = () => {
       {/* Separator */}
       <Box paddingX={1}><Text color="gray">{icons.hLine.repeat(50)}</Text></Box>
 
-      {/* Help or TODO list */}
+      {/* Help, Done History, or TODO list */}
       {showHelp ? (
         <HelpView />
+      ) : showDoneHistory ? (
+        <DoneHistoryView
+          records={doneHistory}
+          scrollOffset={scrollOffset}
+          viewHeight={15}
+        />
       ) : (
         <TodoList
           todos={todos}
