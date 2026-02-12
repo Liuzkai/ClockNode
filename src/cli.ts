@@ -7,6 +7,7 @@
 //   clocknode --undo 3          --undo *
 //   clocknode --delete 3        --delete 1-5   --delete *
 //   clocknode --edit "1 新内容"
+//   clocknode --now 4
 //   clocknode --tag 1 work      --tag * work
 //   clocknode --priority 1 h    --priority * m
 //   clocknode --sort p
@@ -218,6 +219,42 @@ export function handleBatchCli(args: string[]): CliResult[] | null {
       }
       const res = editTask(value);
       results.push(res);
+      i++;
+      continue;
+    }
+
+    if (arg === '--now') {
+      hasBatchCmd = true;
+      const value = args[++i];
+      if (!value) {
+        results.push({ success: false, message: 'Missing index for --now' });
+        i++;
+        continue;
+      }
+      const idx = parseInt(value, 10);
+      if (!idx || idx < 1) {
+        results.push({ success: false, message: `Invalid index: ${value}` });
+        i++;
+        continue;
+      }
+      const todos = loadTodos();
+      if (idx > todos.length) {
+        results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
+      } else {
+        const target = todos[idx - 1];
+        if (target.status === TodoStatus.Done) {
+          results.push({ success: false, message: `Task #${idx} is already done.` });
+        } else {
+          // In batch mode: mark target as in-progress, pause any other in-progress tasks
+          const updated = todos.map((t, j) => {
+            if (j === idx - 1) return { ...t, status: TodoStatus.InProgress };
+            if (t.status === TodoStatus.InProgress) return { ...t, status: TodoStatus.Pending };
+            return t;
+          });
+          saveTodos(updated);
+          results.push({ success: true, message: `Now: "${target.content}" marked as in-progress (others paused)` });
+        }
+      }
       i++;
       continue;
     }

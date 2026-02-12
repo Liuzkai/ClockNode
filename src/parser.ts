@@ -31,6 +31,7 @@ const ALIASES: Record<string, string> = {
   'q': 'quit',
   'hi': 'history',
   'b': 'back',
+  'nw': 'now',
 };
 
 /** Forbidden time units (day and above) */

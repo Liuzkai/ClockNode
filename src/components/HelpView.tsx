@@ -43,6 +43,7 @@ export const HelpView: React.FC = () => {
     ]],
     ['TODO Countdown', [
       ['/start N,N|*, /st N|*', 'Start countdown (* = all pending)'],
+      ['/now N, /nw N', 'Start task N now, suspend current'],
       ['/ok', 'Mark current task done, next task'],
       ['/pass, /ps', 'Skip current task'],
       ['/pause, /pa', 'Pause countdown'],

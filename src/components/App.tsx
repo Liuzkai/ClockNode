@@ -1098,6 +1098,96 @@ export const App: React.FC = () => {
         break;
       }
 
+      // Interrupt current countdown, start target task immediately
+      case 'now': {
+        const idx = parseInt(args[0], 10);
+        if (!idx || idx < 1 || idx > todos.length) {
+          notify('Usage: /now <N>');
+          break;
+        }
+        const targetTodo = todos[idx - 1];
+        if (targetTodo.status === TodoStatus.Done) {
+          notify(`Task #${idx} is already done.`);
+          break;
+        }
+        const targetId = targetTodo.id;
+        const nowTotalSec = (targetTodo.duration || 60) * 60;
+        const nowAlreadySpent = targetTodo.actualTime || 0;
+        const nowRemainSec = nowTotalSec - nowAlreadySpent;
+
+        if (todoCountdown && mode === Mode.TodoCountdown) {
+          // Save current task's actual time before suspending
+          const currentId = todoCountdown.queue[todoCountdown.currentIndex];
+          const currentActualTime = calcActualTime(todoCountdown);
+
+          // If target is already the current task, do nothing
+          if (currentId === targetId) {
+            notify(`Task #${idx} is already the current task.`);
+            break;
+          }
+
+          // Persist current task's progress
+          setTodos(prev => prev.map(t =>
+            t.id === currentId
+              ? { ...t, actualTime: currentActualTime, status: TodoStatus.Pending }
+              : t.id === targetId
+                ? { ...t, status: TodoStatus.InProgress }
+                : t
+          ));
+
+          // Build new queue: target first, then current (suspended), then rest
+          const newQueue: string[] = [targetId, currentId];
+          for (let qi = todoCountdown.currentIndex + 1; qi < todoCountdown.queue.length; qi++) {
+            const id = todoCountdown.queue[qi];
+            if (id !== targetId && id !== currentId) newQueue.push(id);
+          }
+          // If target was not in queue, it's already at front; if it was, remove duplicate
+          // Also keep current task's actualTime in the map
+          const updatedActualTimes = { ...todoCountdown.actualTimes, [currentId]: currentActualTime };
+
+          setTodoCountdown({
+            queue: newQueue,
+            currentIndex: 0,
+            running: true,
+            overtime: nowRemainSec <= 0,
+            totalSeconds: nowTotalSec,
+            remainingSeconds: nowRemainSec,
+            actualTimes: updatedActualTimes,
+            startedAt: Date.now(),
+            pausedRemaining: nowRemainSec,
+            waitingForAction: nowRemainSec <= 0,
+            previousActualTime: nowAlreadySpent,
+          });
+
+          const resumeHint = nowAlreadySpent > 0 ? ` (resuming from ${formatTime(nowAlreadySpent)})` : '';
+          notify(`${icons.play} Now: ${targetTodo.content} (${targetTodo.duration || 60}m)${resumeHint} — previous task paused`);
+        } else {
+          // No countdown running, start fresh with just this task
+          setTodos(prev => prev.map(t =>
+            t.id === targetId ? { ...t, status: TodoStatus.InProgress } : t
+          ));
+
+          setMode(Mode.TodoCountdown);
+          setTodoCountdown({
+            queue: [targetId],
+            currentIndex: 0,
+            running: true,
+            overtime: nowRemainSec <= 0,
+            totalSeconds: nowTotalSec,
+            remainingSeconds: nowRemainSec,
+            actualTimes: {},
+            startedAt: Date.now(),
+            pausedRemaining: nowRemainSec,
+            waitingForAction: nowRemainSec <= 0,
+            previousActualTime: nowAlreadySpent,
+          });
+          const resumeHint = nowAlreadySpent > 0 ? ` (resuming from ${formatTime(nowAlreadySpent)})` : '';
+          notify(`${icons.play} Now: ${targetTodo.content} (${targetTodo.duration || 60}m)${resumeHint}`);
+        }
+        setMode(Mode.TodoCountdown);
+        break;
+      }
+
       // Pass/skip current todo
       case 'pass': {
         if (mode === Mode.TodoCountdown && todoCountdown) {

@@ -85,6 +85,9 @@ clocknode --priority "*" m
 # Sort (p=priority, s=status, c=created)
 clocknode --sort p
 
+# Start task immediately (suspend others)
+clocknode --now 4
+
 # List all tasks
 clocknode --list
 clocknode -l
@@ -156,6 +159,7 @@ All commands start with `/` in the interactive UI.
 | Command | Alias | Description |
 |---------|-------|-------------|
 | `/start <N,...\|*>` | `st` | Start countdown queue (`*` = all pending in order) |
+| `/now <N>` | `nw` | Start task N immediately, suspend current countdown task |
 | `/done` | `ok` | Complete current task and advance to next |
 | `/pass` | `ps` | Skip current task and advance to next |
 | `/pause` | `pa` | Pause the current countdown |

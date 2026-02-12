@@ -75,6 +75,12 @@ export const COMMANDS: CommandDef[] = [
     description: 'Start sequential TODO countdown (* = all pending)',
   },
   {
+    name: 'now',
+    aliases: ['nw'],
+    usage: '/now <N>',
+    description: 'Start task N immediately, suspend current countdown task',
+  },
+  {
     name: 'done',
     aliases: ['ok'],
     usage: '/done [N|*]',
