@@ -33,6 +33,55 @@ const ALIASES: Record<string, string> = {
   'b': 'back',
 };
 
+/** Forbidden time units (day and above) */
+const FORBIDDEN_UNITS = /^(d|day|days|w|week|weeks|mon|month|months|y|year|years)$/i;
+
+/**
+ * Parse a duration string into minutes.
+ * Supports:
+ *   - Plain number: treated as minutes (e.g. "20" → 20)
+ *   - Number + unit: "20m", "20min" → 20; "2h" → 120
+ *   - Presets: "01"~"04" → COUNTDOWN_PRESETS
+ *   - Forbidden units (d/w/mon/y): returns { minutes: 60, warning: '...' }
+ *
+ * Returns { minutes, warning? }
+ */
+export function parseDuration(raw: string): { minutes: number; warning?: string } {
+  // Preset: starts with 0 and is 2 chars (e.g. "01", "02")
+  if (raw.startsWith('0') && raw.length === 2) {
+    const presetKey = raw;
+    if (COUNTDOWN_PRESETS[presetKey] !== undefined) {
+      return { minutes: COUNTDOWN_PRESETS[presetKey] };
+    }
+    return { minutes: parseInt(raw, 10) || 60 };
+  }
+
+  // Number + unit
+  const unitMatch = raw.match(/^(\d+(?:\.\d+)?)\s*(m|min|h|d|day|days|w|week|weeks|mon|month|months|y|year|years)$/i);
+  if (unitMatch) {
+    const num = parseFloat(unitMatch[1]);
+    const unit = unitMatch[2].toLowerCase();
+
+    if (FORBIDDEN_UNITS.test(unit)) {
+      return { minutes: 60, warning: `Unit "${unit}" is not supported (max unit: h). Using default 60m.` };
+    }
+
+    if (unit === 'h') {
+      return { minutes: Math.round(num * 60) };
+    }
+    // m, min
+    return { minutes: Math.round(num) || 60 };
+  }
+
+  // Plain number (minutes)
+  const num = parseInt(raw, 10);
+  if (num && num > 0) {
+    return { minutes: num };
+  }
+
+  return { minutes: 60 };
+}
+
 /**
  * Parse user input into a command or a todo item.
  *
@@ -64,26 +113,18 @@ export function parseInput(input: string): ParsedInput | null {
     content = content.slice(posMatch[0].length);
   }
 
-  // Parse @duration suffix
-  const durMatch = content.match(/\s+@(0?\d+)\s*$/);
+  // Parse @duration suffix (supports units: @20, @20m, @20min, @2h, @01)
+  const durMatch = content.match(/\s+@(\S+)\s*$/);
+  let warning: string | undefined;
   if (durMatch) {
     const rawDur = durMatch[1];
     content = content.slice(0, -durMatch[0].length).trim();
-
-    // Check if it's a preset (starts with 0)
-    if (rawDur.startsWith('0') && rawDur.length === 2) {
-      const presetKey = rawDur;
-      if (COUNTDOWN_PRESETS[presetKey] !== undefined) {
-        duration = COUNTDOWN_PRESETS[presetKey];
-      } else {
-        duration = parseInt(rawDur, 10) || 60;
-      }
-    } else {
-      duration = parseInt(rawDur, 10) || 60;
-    }
+    const result = parseDuration(rawDur);
+    duration = result.minutes;
+    warning = result.warning;
   }
 
   if (!content) return null;
 
-  return { type: 'todo', content, position, duration };
+  return { type: 'todo', content, position, duration, warning };
 }

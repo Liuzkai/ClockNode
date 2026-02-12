@@ -43,7 +43,7 @@ import {
   deleteDoneRecord,
   deleteDoneRecordRange,
 } from '../store.js';
-import { parseInput } from '../parser.js';
+import { parseInput, parseDuration } from '../parser.js';
 import { triggerNotification } from '../notify.js';
 import { formatTime } from '../utils.js';
 import { icons } from '../icons.js';
@@ -525,7 +525,11 @@ export const App: React.FC = () => {
     if (parsed.type === 'todo') {
       const todo = createTodo(parsed.content, parsed.duration);
       setTodos(prev => insertTodo(prev, todo, parsed.position));
-      notify(`${icons.check} Added: "${parsed.content}" (@${parsed.duration}m)`);
+      if (parsed.warning) {
+        notify(`${icons.warning} ${parsed.warning}`);
+      } else {
+        notify(`${icons.check} Added: "${parsed.content}" (@${parsed.duration}m)`);
+      }
       return;
     }
 
@@ -821,19 +825,25 @@ export const App: React.FC = () => {
             notify(`Moved item ${idx} → position ${toIdx}`);
           }
         } else if (arg.startsWith('@') && !args[2]) {
-          // Change duration only: /edit 1 @55
-          const dur = parseInt(arg.slice(1), 10);
-          if (dur && dur > 0) {
-            setTodos(prev => setDuration(prev, idx, dur));
-            notify(`Set item ${idx} duration to ${dur}m`);
+          // Change duration only: /edit 1 @55 or /edit 1 @2h
+          const durResult = parseDuration(arg.slice(1));
+          if (durResult.warning) {
+            notify(`${icons.warning} ${durResult.warning}`);
+          }
+          if (durResult.minutes > 0) {
+            setTodos(prev => setDuration(prev, idx, durResult.minutes));
+            notify(`Set item ${idx} duration to ${durResult.minutes}m`);
           }
         } else {
-          // Edit content (and optionally duration): /edit 1 new text @30
+          // Edit content (and optionally duration): /edit 1 new text @30 or @2h
           let text = args.slice(1).join(' ');
           let newDuration: number | undefined;
-          const durMatch = text.match(/\s+@(\d+)\s*$/);
+          let durWarning: string | undefined;
+          const durMatch = text.match(/\s+@(\S+)\s*$/);
           if (durMatch) {
-            newDuration = parseInt(durMatch[1], 10);
+            const durResult = parseDuration(durMatch[1]);
+            newDuration = durResult.minutes;
+            durWarning = durResult.warning;
             text = text.slice(0, -durMatch[0].length).trim();
           }
           if (text) {
@@ -842,8 +852,12 @@ export const App: React.FC = () => {
                 ? { ...t, content: text, ...(newDuration && newDuration > 0 ? { duration: newDuration } : {}) }
                 : t
             ));
-            const durHint = newDuration ? ` (@${newDuration}m)` : '';
-            notify(`Edited item ${idx}${durHint}`);
+            if (durWarning) {
+              notify(`${icons.warning} ${durWarning}`);
+            } else {
+              const durHint = newDuration ? ` (@${newDuration}m)` : '';
+              notify(`Edited item ${idx}${durHint}`);
+            }
           }
         }
         break;

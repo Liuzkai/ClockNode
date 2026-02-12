@@ -9,7 +9,7 @@
 //   clocknode --list
 //   clocknode --clear_done
 
-import { parseInput } from './parser.js';
+import { parseInput, parseDuration } from './parser.js';
 import {
   loadTodos,
   saveTodos,
@@ -231,11 +231,14 @@ function editTask(raw: string): CliResult {
       return { success: true, message: `Moved item ${idx} → position ${toIdx}` };
     }
   } else if (arg.startsWith('@')) {
-    const dur = parseInt(arg.slice(1), 10);
-    if (dur && dur > 0) {
-      const updated = setDuration(todos, idx, dur);
+    const durResult = parseDuration(arg.slice(1));
+    if (durResult.warning) {
+      return { success: false, message: durResult.warning };
+    }
+    if (durResult.minutes > 0) {
+      const updated = setDuration(todos, idx, durResult.minutes);
       saveTodos(updated);
-      return { success: true, message: `Set item ${idx} duration to ${dur}m` };
+      return { success: true, message: `Set item ${idx} duration to ${durResult.minutes}m` };
     }
   } else {
     const text = parts.slice(1).join(' ');

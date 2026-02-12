@@ -157,6 +157,7 @@ export interface ParsedTodo {
   content: string;
   position?: number; // #N insert position
   duration: number; // minutes
+  warning?: string; // duration parse warning
 }
 
 export type ParsedInput = ParsedCommand | ParsedTodo;
