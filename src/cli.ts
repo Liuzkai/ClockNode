@@ -3,11 +3,17 @@
 // ============================================================
 // Allows external tools to manipulate todos without starting the UI:
 //   clocknode --add_task "#1 买菜 @30"
-//   clocknode --done 2
-//   clocknode --delete 3
+//   clocknode --done 2          --done *
+//   clocknode --undo 3          --undo *
+//   clocknode --delete 3        --delete 1-5   --delete *
 //   clocknode --edit "1 新内容"
+//   clocknode --tag 1 work      --tag * work
+//   clocknode --priority 1 h    --priority * m
+//   clocknode --sort p
 //   clocknode --list
 //   clocknode --clear_done
+//   clocknode --reset
+//   clocknode --history
 
 import { parseInput, parseDuration } from './parser.js';
 import {
@@ -22,8 +28,17 @@ import {
   markDone,
   markUndone,
   clearDone,
+  resetAll,
+  setTag,
+  setPriority,
+  sortTodos,
+  addDoneRecord,
+  loadDoneHistory,
+  saveDoneHistory,
+  deleteDoneRecord,
+  deleteDoneRecordRange,
 } from './store.js';
-import { TodoStatus } from './types.js';
+import { TodoStatus, Priority } from './types.js';
 import { icons } from './icons.js';
 
 interface CliResult {
@@ -65,19 +80,34 @@ export function handleBatchCli(args: string[]): CliResult[] | null {
         i++;
         continue;
       }
-      const idx = parseInt(value, 10);
-      if (!idx || idx < 1) {
-        results.push({ success: false, message: `Invalid index: ${value}` });
-        i++;
-        continue;
-      }
       const todos = loadTodos();
-      if (idx > todos.length) {
-        results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
-      } else {
-        const updated = markDone(todos, idx);
+      if (value === '*') {
+        let count = 0;
+        let updated = [...todos];
+        for (let j = 0; j < updated.length; j++) {
+          if (updated[j].status === TodoStatus.Pending) {
+            updated = markDone(updated, j + 1);
+            addDoneRecord(updated[j]);
+            count++;
+          }
+        }
         saveTodos(updated);
-        results.push({ success: true, message: `Completed item ${idx}: "${todos[idx - 1].content}"` });
+        results.push({ success: true, message: `Completed ${count} pending items.` });
+      } else {
+        const idx = parseInt(value, 10);
+        if (!idx || idx < 1) {
+          results.push({ success: false, message: `Invalid index: ${value}` });
+          i++;
+          continue;
+        }
+        if (idx > todos.length) {
+          results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
+        } else {
+          const updated = markDone(todos, idx);
+          saveTodos(updated);
+          addDoneRecord(updated[idx - 1]);
+          results.push({ success: true, message: `Completed item ${idx}: "${todos[idx - 1].content}"` });
+        }
       }
       i++;
       continue;
@@ -91,19 +121,32 @@ export function handleBatchCli(args: string[]): CliResult[] | null {
         i++;
         continue;
       }
-      const idx = parseInt(value, 10);
-      if (!idx || idx < 1) {
-        results.push({ success: false, message: `Invalid index: ${value}` });
-        i++;
-        continue;
-      }
       const todos = loadTodos();
-      if (idx > todos.length) {
-        results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
-      } else {
-        const updated = markUndone(todos, idx);
+      if (value === '*') {
+        let count = 0;
+        let updated = [...todos];
+        for (let j = 0; j < updated.length; j++) {
+          if (updated[j].status === TodoStatus.Done) {
+            updated = markUndone(updated, j + 1);
+            count++;
+          }
+        }
         saveTodos(updated);
-        results.push({ success: true, message: `Restored item ${idx} to pending` });
+        results.push({ success: true, message: `Restored ${count} items to pending.` });
+      } else {
+        const idx = parseInt(value, 10);
+        if (!idx || idx < 1) {
+          results.push({ success: false, message: `Invalid index: ${value}` });
+          i++;
+          continue;
+        }
+        if (idx > todos.length) {
+          results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
+        } else {
+          const updated = markUndone(todos, idx);
+          saveTodos(updated);
+          results.push({ success: true, message: `Restored item ${idx} to pending` });
+        }
       }
       i++;
       continue;
@@ -117,20 +160,49 @@ export function handleBatchCli(args: string[]): CliResult[] | null {
         i++;
         continue;
       }
-      const idx = parseInt(value, 10);
-      if (!idx || idx < 1) {
-        results.push({ success: false, message: `Invalid index: ${value}` });
-        i++;
-        continue;
-      }
       const todos = loadTodos();
-      if (idx > todos.length) {
-        results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
-      } else {
-        const name = todos[idx - 1].content;
-        const updated = deleteTodo(todos, idx);
+      if (value === '*') {
+        // Record done items to history before deleting all
+        for (const t of todos) {
+          if (t.status === TodoStatus.Done) addDoneRecord(t);
+        }
+        saveTodos([]);
+        results.push({ success: true, message: `Deleted all ${todos.length} items.` });
+      } else if (value.includes('-')) {
+        const [fromStr, toStr] = value.split('-');
+        const from = parseInt(fromStr, 10);
+        const to = parseInt(toStr, 10);
+        if (!from || !to || from < 1 || to < 1) {
+          results.push({ success: false, message: `Invalid range: ${value}` });
+          i++;
+          continue;
+        }
+        const start = Math.max(1, Math.min(from, to));
+        const end = Math.min(todos.length, Math.max(from, to));
+        // Record done items in range to history
+        for (let j = start - 1; j < end; j++) {
+          if (todos[j].status === TodoStatus.Done) addDoneRecord(todos[j]);
+        }
+        const updated = [...todos];
+        updated.splice(start - 1, end - start + 1);
         saveTodos(updated);
-        results.push({ success: true, message: `Deleted item ${idx}: "${name}"` });
+        results.push({ success: true, message: `Deleted items ${start}-${end}.` });
+      } else {
+        const idx = parseInt(value, 10);
+        if (!idx || idx < 1) {
+          results.push({ success: false, message: `Invalid index: ${value}` });
+          i++;
+          continue;
+        }
+        if (idx > todos.length) {
+          results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
+        } else {
+          if (todos[idx - 1].status === TodoStatus.Done) addDoneRecord(todos[idx - 1]);
+          const name = todos[idx - 1].content;
+          const updated = deleteTodo(todos, idx);
+          saveTodos(updated);
+          results.push({ success: true, message: `Deleted item ${idx}: "${name}"` });
+        }
       }
       i++;
       continue;
@@ -170,9 +242,148 @@ export function handleBatchCli(args: string[]): CliResult[] | null {
       continue;
     }
 
+    if (arg === '--tag') {
+      hasBatchCmd = true;
+      const idxStr = args[++i];
+      const tagVal = args[++i];
+      if (!idxStr || !tagVal) {
+        results.push({ success: false, message: 'Usage: --tag <N|*> <tag>' });
+        i++;
+        continue;
+      }
+      const todos = loadTodos();
+      if (idxStr === '*') {
+        let updated = [...todos];
+        for (let j = 0; j < updated.length; j++) {
+          updated = setTag(updated, j + 1, tagVal);
+        }
+        saveTodos(updated);
+        results.push({ success: true, message: `Tagged all ${updated.length} items with "${tagVal}"` });
+      } else {
+        const idx = parseInt(idxStr, 10);
+        if (!idx || idx < 1) {
+          results.push({ success: false, message: `Invalid index: ${idxStr}` });
+          i++;
+          continue;
+        }
+        if (idx > todos.length) {
+          results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
+        } else {
+          const updated = setTag(todos, idx, tagVal);
+          saveTodos(updated);
+          results.push({ success: true, message: `Tagged item ${idx} with "${tagVal}"` });
+        }
+      }
+      i++;
+      continue;
+    }
+
+    if (arg === '--priority') {
+      hasBatchCmd = true;
+      const idxStr = args[++i];
+      const prioStr = args[++i];
+      if (!idxStr || !prioStr) {
+        results.push({ success: false, message: 'Usage: --priority <N|*> <h|m|l>' });
+        i++;
+        continue;
+      }
+      const prioMap: Record<string, Priority> = { h: Priority.High, m: Priority.Mid, l: Priority.Low };
+      const prio = prioMap[prioStr.toLowerCase()];
+      if (!prio) {
+        results.push({ success: false, message: `Invalid priority: "${prioStr}". Use h, m, or l.` });
+        i++;
+        continue;
+      }
+      const todos = loadTodos();
+      if (idxStr === '*') {
+        let updated = [...todos];
+        for (let j = 0; j < updated.length; j++) {
+          updated = setPriority(updated, j + 1, prio);
+        }
+        saveTodos(updated);
+        results.push({ success: true, message: `Set priority of all ${updated.length} items to ${prio}` });
+      } else {
+        const idx = parseInt(idxStr, 10);
+        if (!idx || idx < 1) {
+          results.push({ success: false, message: `Invalid index: ${idxStr}` });
+          i++;
+          continue;
+        }
+        if (idx > todos.length) {
+          results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
+        } else {
+          const updated = setPriority(todos, idx, prio);
+          saveTodos(updated);
+          results.push({ success: true, message: `Set item ${idx} priority to ${prio}` });
+        }
+      }
+      i++;
+      continue;
+    }
+
+    if (arg === '--sort') {
+      hasBatchCmd = true;
+      const byStr = args[++i];
+      if (!byStr) {
+        results.push({ success: false, message: 'Usage: --sort <p|s|c>' });
+        i++;
+        continue;
+      }
+      const validSort = ['p', 's', 'c', 'priority', 'status', 'created'];
+      if (!validSort.includes(byStr.toLowerCase())) {
+        results.push({ success: false, message: `Invalid sort key: "${byStr}". Use p, s, or c.` });
+        i++;
+        continue;
+      }
+      const todos = loadTodos();
+      const updated = sortTodos(todos, byStr.toLowerCase());
+      saveTodos(updated);
+      results.push({ success: true, message: `Sorted TODOs by ${byStr}` });
+      i++;
+      continue;
+    }
+
+    if (arg === '--reset') {
+      hasBatchCmd = true;
+      const todos = loadTodos();
+      const updated = resetAll(todos);
+      saveTodos(updated);
+      results.push({ success: true, message: `Reset ${updated.length} items to pending.` });
+      i++;
+      continue;
+    }
+
+    if (arg === '--history') {
+      hasBatchCmd = true;
+      const records = loadDoneHistory();
+      if (records.length === 0) {
+        results.push({ success: true, message: 'Done history is empty.' });
+      } else {
+        const lines = records.map((r, j) => {
+          const idx = String(j + 1).padStart(2, ' ');
+          const d = new Date(r.completedAt);
+          const dateStr = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+          const totalSec = r.actualTime || 0;
+          const hh = String(Math.floor(totalSec / 3600)).padStart(1, '0');
+          const mm = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+          const ss = String(totalSec % 60).padStart(2, '0');
+          const timeStr = `${hh}:${mm}:${ss}`;
+          const tags = r.tags.length > 0 ? ` #${r.tags.join(' #')}` : '';
+          return `#${idx} ${dateStr}  ${r.content}  ${timeStr}${tags}`;
+        });
+        results.push({ success: true, message: `Done History (${records.length} items):\n${lines.join('\n')}` });
+      }
+      i++;
+      continue;
+    }
+
     if (arg === '--clear_done' || arg === '--clear') {
       hasBatchCmd = true;
       const todos = loadTodos();
+      // Record done items to history before clearing
+      for (const t of todos) {
+        if (t.status === TodoStatus.Done) addDoneRecord(t);
+      }
       const updated = clearDone(todos);
       const removed = todos.length - updated.length;
       saveTodos(updated);

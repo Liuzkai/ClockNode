@@ -14,8 +14,11 @@ A feature-rich terminal clock, timer, and TODO management tool built with [React
 - **Countdown Timer** — Custom duration or built-in presets (5/10/30/60 min)
 - **TODO List** — Full CRUD with priority, tags, and duration tracking
 - **TODO Countdown Queue** — Sequential task countdowns with overtime tracking, progress recovery, and queue merging
+- **Done History** — Persistent log of all completed tasks with actual time spent; viewable via `/history` or `--history`
 - **Countdown Persistence** — Timer progress auto-saved on exit (Ctrl+C, close terminal) and periodically; resume from where you left off
+- **Duration Units** — `@20` (minutes), `@20m`/`@20min`, `@2h`; forbidden units (day+) warn and fallback to 60m
 - **Wildcard `*` Support** — Batch operations on all items (`/done *`, `/delete *`, `/start *`, etc.)
+- **Range Delete** — `/delete N-M` to delete a range of items
 - **Dangerous Op Confirmation** — `/delete *` requires repeat-to-confirm with live countdown
 - **Multi-line Paste** — Paste multiple lines to add multiple tasks at once
 - **System Notifications** — BEL sound + OS-level notifications (via `node-notifier`)
@@ -50,22 +53,37 @@ This launches the full terminal UI with clock, TODO list, and input bar.
 Operate on TODOs from scripts or external tools without launching the UI:
 
 ```bash
-# Add a task (30-minute duration)
+# Add a task (30-minute duration, supports @Nm @Nmin @Nh)
 clocknode --add_task "Write documentation @30"
 clocknode -a "Review PR @15"
+clocknode --add "#2 Deploy release @2h"
 
-# Mark task #2 as done
+# Mark task done (* = all pending)
 clocknode --done 2
+clocknode --done "*"
 
-# Undo (revert to pending)
+# Undo (revert to pending, * = all completed)
 clocknode --undo 3
+clocknode --undo "*"
 
-# Delete task #1
+# Delete task (single / range / all)
 clocknode --delete 1
-clocknode --del 1
+clocknode --del 2-5
+clocknode --delete "*"
 
-# Edit task #2
-clocknode --edit 2 "Updated content @45"
+# Edit task content / move position / set duration
+clocknode --edit "2 Updated content"
+clocknode --edit "3 #1"
+clocknode --edit "1 @2h"
+
+# Tag / Priority
+clocknode --tag 1 work
+clocknode --tag "*" urgent
+clocknode --priority 1 h
+clocknode --priority "*" m
+
+# Sort (p=priority, s=status, c=created)
+clocknode --sort p
 
 # List all tasks
 clocknode --list
@@ -73,6 +91,13 @@ clocknode -l
 
 # Clear completed tasks
 clocknode --clear_done
+clocknode --clear
+
+# Reset all tasks to pending
+clocknode --reset
+
+# View done history
+clocknode --history
 
 # Chain multiple operations
 clocknode --add_task "Task A @10" --add_task "Task B @20" --done 1
@@ -86,19 +111,19 @@ All commands start with `/` in the interactive UI.
 
 | Command | Alias | Description |
 |---------|-------|-------------|
-| `/help` | `h` | Toggle help panel |
+| `/help` | `h`, `?` | Toggle help panel |
 | `/quit` | `q` | Exit application |
 | `/mode <1-4>` | `m` | Switch view (1=Clock, 2=Timer, 3=Countdown, 4=TodoCountdown) |
-| `/theme <0-7>` | - | Change progress bar theme |
+| `/theme <1-8>` | `th` | Change progress bar theme |
 
 ### Timer (Stopwatch)
 
 | Command | Alias | Description |
 |---------|-------|-------------|
-| `/timer` | `t` | Start/restart stopwatch |
-| `/pause` | `p` | Pause timer/countdown |
+| `/timer` | `tm` | Start/restart stopwatch |
+| `/pause` | `pa` | Pause timer/countdown |
 | `/resume` | `r` | Resume timer/countdown |
-| `/stop` | `st` | Stop and reset timer/countdown |
+| `/stop` | `sp` | Stop and reset timer/countdown |
 
 ### Countdown
 
@@ -111,7 +136,7 @@ All commands start with `/` in the interactive UI.
 
 | Command | Alias | Description |
 |---------|-------|-------------|
-| `/delete <N\|*>` | `d` | Delete task #N (`*` = delete all) |
+| `/delete <N\|N-M\|*>` | `d` | Delete task (N-M = range, `*` = all) |
 | `/edit <N>` | `e` | Populate input bar with task info for inline editing |
 | `/edit <N> <text> [@dur]` | `e` | Edit task #N content (and optionally duration) |
 | `/edit <N> #<M>` | `e` | Move task #N to position #M |
@@ -120,9 +145,11 @@ All commands start with `/` in the interactive UI.
 | `/undo <N\|*>` | `u` | Revert to pending (`*` = all completed) |
 | `/tag <N\|*> <tag>` | `t` | Set tag (`*` = all items) |
 | `/priority <N\|*> <h\|m\|l>` | `p` | Set priority (`*` = all items) |
-| `/sort` | `s` | Sort by priority (High → Mid → Low → None) |
+| `/sort <p\|s\|c>` | `s` | Sort (p=priority, s=status, c=created) |
 | `/clear` | `cl` | Remove all completed tasks |
 | `/reset` | `rs` | Reset all tasks to pending state |
+| `/history` | `hi` | Show completed tasks history with actual time |
+| `/back` | `b` | Return from history view to TODO list |
 
 ### TODO Countdown Queue
 
@@ -131,9 +158,9 @@ All commands start with `/` in the interactive UI.
 | `/start <N,...\|*>` | `st` | Start countdown queue (`*` = all pending in order) |
 | `/done` | `ok` | Complete current task and advance to next |
 | `/pass` | `ps` | Skip current task and advance to next |
-| `/pause` | `p` | Pause the current countdown |
+| `/pause` | `pa` | Pause the current countdown |
 | `/resume` | `r` | Resume the paused countdown |
-| `/stop` | `st` | Stop the entire countdown queue |
+| `/stop` | `sp` | Stop the entire countdown queue |
 
 ### Adding a TODO
 
@@ -141,9 +168,12 @@ Simply type text (without `/`) to add a task:
 
 ```
 Buy groceries @30          # 30-minute task
-#2 Review code @15         # Insert at position #2, 15 minutes
-Deploy release             # Default 60-minute duration
+#2 Review code @15m        # Insert at position #2, 15 minutes
+Deploy release @2h         # 2-hour task
+Study notes               # Default 60-minute duration
 ```
+
+**Duration formats**: `@20` (minutes), `@20m` / `@20min` (minutes), `@2h` (hours), `@01`–`@04` (presets: 5/10/30/60 min). Day-and-above units are forbidden and fallback to 60m with a warning.
 
 **Multi-line paste**: Copy multiple lines and paste them into the input — each line is added as a separate task automatically.
 
@@ -185,20 +215,22 @@ Settings are stored in `~/.clocknode/config.json`:
 
 TODO data is persisted in `~/.clocknode/todos.json`.
 
+Done history is persisted in `~/.clocknode/done_history.json`.
+
 ## Progress Bar Themes
 
-Switch with `/theme <index>`:
+Switch with `/theme <1-8>`:
 
 | Index | Name | Preview |
 |-------|------|---------|
-| 0 | classic | `█████░░░░░` |
-| 1 | block | `■■■■■□□□□□` |
-| 2 | circle | `●●●●●○○○○○` |
-| 3 | shade | `▓▓▓▓▓░░░░░` |
-| 4 | arrow | `▸▸▸▸▸▹▹▹▹▹` |
-| 5 | star | `★★★★★☆☆☆☆☆` |
-| 6 | diamond | `◆◆◆◆◆◇◇◇◇◇` |
-| 7 | heart | `♥♥♥♥♥♡♡♡♡♡` |
+| 1 | classic | `█████░░░░░` |
+| 2 | block | `■■■■■□□□□□` |
+| 3 | circle | `●●●●●○○○○○` |
+| 4 | shade | `▓▓▓▓▓░░░░░` |
+| 5 | arrow | `▸▸▸▸▸▹▹▹▹▹` |
+| 6 | star | `★★★★★☆☆☆☆☆` |
+| 7 | diamond | `◆◆◆◆◆◇◇◇◇◇` |
+| 8 | heart | `♥♥♥♥♥♡♡♡♡♡` |
 
 ## Project Structure
 
@@ -206,14 +238,14 @@ Switch with `/theme <index>`:
 src/
 ├── index.tsx              # Entry point — CLI arg parsing, batch mode or Ink UI
 ├── types.ts               # Type definitions, enums, interfaces, presets
-├── store.ts               # TODO CRUD — load/save to ~/.clocknode/todos.json
+├── store.ts               # TODO CRUD + done history — load/save to ~/.clocknode/
 ├── config.ts              # Config load/save — ~/.clocknode/config.json
 ├── parser.ts              # Input parser — commands (/cmd) vs TODO items (text @dur)
 ├── icons.ts               # Terminal-aware icon/emoji mapping (auto-detects CMD vs modern terminals)
 ├── commands.ts            # Command definitions, aliases, auto-complete matching
 ├── notify.ts              # Notification helpers — BEL sound + node-notifier
 ├── utils.ts               # Formatting (time, progress bar, clock display)
-├── cli.ts                 # Batch CLI handler (--add_task, --done, --list, etc.)
+├── cli.ts                 # Batch CLI handler (--add_task, --done, --delete, --tag, etc.)
 └── components/
     ├── App.tsx             # Main component — state, commands, countdown logic
     ├── Clock.tsx           # Real-time clock display
@@ -221,6 +253,7 @@ src/
     ├── Countdown.tsx       # Countdown timer with progress bar
     ├── TodoList.tsx        # Scrollable TODO list with status/priority/tags
     ├── TodoCountdownView.tsx  # Active task countdown with overtime display
+    ├── DoneHistoryView.tsx # Completed tasks history view
     ├── HelpView.tsx        # Command reference panel
     └── InputBar.tsx        # Input with auto-complete, ghost text, notifications
 ```
@@ -230,10 +263,12 @@ src/
 ```
 User Input → InputBar → parseInput() → App.handleSubmit()
   ├── Command → switch(name) dispatches to handler
-  └── TODO text → createTodo() → setTodos() → saveTodos() → todos.json
+  ├── TODO text → createTodo() → setTodos() → saveTodos() → todos.json
+  └── /done, /clear, /delete → addDoneRecord() → done_history.json
 
 External (Batch CLI):
   clocknode --add_task "..." → handleBatchCli() → store ops → todos.json
+  clocknode --done/--clear/--delete → also records to done_history.json
   → fs.watch detects change → setTodos(loadTodos()) → UI auto-refreshes
 ```
 
