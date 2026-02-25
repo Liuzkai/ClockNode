@@ -945,49 +945,66 @@ export const App: React.FC = () => {
           const tag = tagVal.slice(1);
           if (!tag) break;
           if (args[0] === '*') {
-            setTodos(prev => prev.map(t => ({
-              ...t,
-              tags: t.tags.filter(tg => tg !== tag),
-            })));
+            setTodos(prev => {
+              let updated = [...prev];
+              for (let j = 0; j < updated.length; j++) {
+                updated = removeTag(updated, j + 1, tag);
+              }
+              return updated;
+            });
             notify(`Removed tag #${tag} from all items`);
           } else {
             const idx = parseInt(args[0], 10);
             if (idx) {
               setTodos(prev => removeTag(prev, idx, tag));
               notify(`Removed tag #${tag} from item ${idx}`);
+            } else {
+              notify(`Invalid index: ${args[0]}`);
             }
           }
         } else if (tagVal.includes(':')) {
           // Rename tag: /tag N old:new
-          const [oldTag, newTag] = tagVal.split(':');
+          const colonIdx = tagVal.indexOf(':');
+          const oldTag = tagVal.slice(0, colonIdx);
+          const newTag = tagVal.slice(colonIdx + 1);
           if (!oldTag || !newTag) break;
           if (args[0] === '*') {
-            setTodos(prev => prev.map(t => {
-              const tags = t.tags.map(tg => tg === oldTag ? newTag : tg);
-              return { ...t, tags: [...new Set(tags)] };
-            }));
+            setTodos(prev => {
+              let updated = [...prev];
+              for (let j = 0; j < updated.length; j++) {
+                updated = renameTag(updated, j + 1, oldTag, newTag);
+              }
+              return updated;
+            });
             notify(`Renamed tag #${oldTag} → #${newTag} on all items`);
           } else {
             const idx = parseInt(args[0], 10);
             if (idx) {
               setTodos(prev => renameTag(prev, idx, oldTag, newTag));
               notify(`Renamed tag #${oldTag} → #${newTag} on item ${idx}`);
+            } else {
+              notify(`Invalid index: ${args[0]}`);
             }
           }
         } else {
           // Add tag (original behavior)
           const tag = tagVal;
           if (args[0] === '*') {
-            setTodos(prev => prev.map(t => {
-              const tags = t.tags.includes(tag) ? t.tags : [...t.tags, tag];
-              return { ...t, tags };
-            }));
+            setTodos(prev => {
+              let updated = [...prev];
+              for (let j = 0; j < updated.length; j++) {
+                updated = setTag(updated, j + 1, tag);
+              }
+              return updated;
+            });
             notify(`Tagged all items with #${tag}`);
           } else {
             const idx = parseInt(args[0], 10);
             if (idx) {
               setTodos(prev => setTag(prev, idx, tag));
               notify(`Tagged item ${idx} with #${tag}`);
+            } else {
+              notify(`Invalid index: ${args[0]}`);
             }
           }
         }
@@ -997,7 +1014,7 @@ export const App: React.FC = () => {
       case 'priority': {
         const pMap: Record<string, Priority> = { h: Priority.High, m: Priority.Mid, l: Priority.Low, high: Priority.High, mid: Priority.Mid, low: Priority.Low };
         const rawP = args[1]?.toLowerCase();
-        if (rawP === '-' || rawP === 'none' || rawP === 'n') {
+        if (rawP === '-' || rawP === 'none') {
           // Clear priority
           if (args[0] === '*') {
             setTodos(prev => prev.map(t => ({ ...t, priority: Priority.None })));
@@ -1007,6 +1024,8 @@ export const App: React.FC = () => {
             if (idx) {
               setTodos(prev => setPriority(prev, idx, Priority.None));
               notify(`Cleared priority on item ${idx}`);
+            } else {
+              notify(`Invalid index: ${args[0]}`);
             }
           }
         } else {
@@ -1021,6 +1040,8 @@ export const App: React.FC = () => {
             if (idx && p) {
               setTodos(prev => setPriority(prev, idx, p));
               notify(`Set item ${idx} priority to ${p}`);
+            } else if (!idx) {
+              notify(`Invalid index: ${args[0]}`);
             }
           }
         }

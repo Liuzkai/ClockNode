@@ -330,7 +330,9 @@ export function handleBatchCli(args: string[]): CliResult[] | null {
         }
       } else if (tagVal.includes(':')) {
         // Rename tag
-        const [oldTag, newTag] = tagVal.split(':');
+        const colonIdx = tagVal.indexOf(':');
+        const oldTag = tagVal.slice(0, colonIdx);
+        const newTag = tagVal.slice(colonIdx + 1);
         if (!oldTag || !newTag) {
           results.push({ success: false, message: 'Usage: --tag <N|*> old:new' });
           i++;
@@ -397,7 +399,7 @@ export function handleBatchCli(args: string[]): CliResult[] | null {
         continue;
       }
       const lower = prioStr.toLowerCase();
-      if (lower === '-' || lower === 'none' || lower === 'n') {
+      if (lower === '-' || lower === 'none') {
         // Clear priority
         const todos = loadTodos();
         if (idxStr === '*') {

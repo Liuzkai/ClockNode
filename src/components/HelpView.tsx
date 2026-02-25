@@ -33,7 +33,7 @@ export const HelpView: React.FC = () => {
       ['/edit N .., /e N ..', 'Edit text | /e N #M move | /e N @M duration | /e N @+M/@-M actual time'],
       ['/done N|*, /ok N|*', 'Mark done (* = all pending)'],
       ['/undo N|*, /u N|*', 'Undo done (* = all completed)'],
-      ['/tag N|* tag|-tag|o:n', 'Add, remove (-tag), rename (old:new) tag'],
+      ['/tag N|* tag|-tag|old:new', 'Add, remove (-tag), rename (old:new) tag'],
       ['/priority N|* L|-|none', 'Set h|m|l or clear (-/none) priority'],
       ['/sort BY, /s BY', 'Sort (p=priority s=status c=created)'],
       ['/clear, /cl', 'Clear completed TODOs'],
