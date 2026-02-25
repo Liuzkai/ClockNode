@@ -46,7 +46,7 @@ import {
   deleteDoneRecordRange,
   adjustActualTime,
 } from '../store.js';
-import { parseInput, parseDuration } from '../parser.js';
+import { parseInput, parseDuration, parseDurationSeconds } from '../parser.js';
 import { triggerNotification } from '../notify.js';
 import { formatTime } from '../utils.js';
 import { icons } from '../icons.js';
@@ -830,13 +830,13 @@ export const App: React.FC = () => {
         } else if (arg.startsWith('@') && !args[2]) {
           const afterAt = arg.slice(1);
           if (afterAt.startsWith('+') || afterAt.startsWith('-')) {
-            // Adjust actualTime: /edit 1 @+10min or /edit 1 @-1h
+            // Adjust actualTime: /edit 1 @+10min or /edit 1 @-1h or /edit 1 @+30s
             const sign = afterAt.startsWith('+') ? 1 : -1;
-            const durResult = parseDuration(afterAt.slice(1));
+            const durResult = parseDurationSeconds(afterAt.slice(1));
             if (durResult.warning) {
               notify(`${icons.warning} ${durResult.warning}`);
-            } else if (durResult.minutes > 0) {
-              const deltaSec = sign * durResult.minutes * 60;
+            } else if (durResult.seconds > 0) {
+              const deltaSec = sign * durResult.seconds;
               setTodos(prev => {
                 const updated = adjustActualTime(prev, idx, deltaSec);
                 const newActual = updated[idx - 1].actualTime || 0;

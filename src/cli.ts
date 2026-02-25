@@ -16,7 +16,7 @@
 //   clocknode --reset           --reset 2   --reset 1-5   --reset *
 //   clocknode --history
 
-import { parseInput, parseDuration } from './parser.js';
+import { parseInput, parseDuration, parseDurationSeconds } from './parser.js';
 import {
   loadTodos,
   saveTodos,
@@ -519,14 +519,14 @@ function editTask(raw: string): CliResult {
   } else if (arg.startsWith('@')) {
     const afterAt = arg.slice(1);
     if (afterAt.startsWith('+') || afterAt.startsWith('-')) {
-      // Adjust actualTime: --edit "1 @+10min" or --edit "1 @-1h"
+      // Adjust actualTime: --edit "1 @+10min" or --edit "1 @-1h" or --edit "1 @+30s"
       const sign = afterAt.startsWith('+') ? 1 : -1;
-      const durResult = parseDuration(afterAt.slice(1));
+      const durResult = parseDurationSeconds(afterAt.slice(1));
       if (durResult.warning) {
         return { success: false, message: durResult.warning };
       }
-      if (durResult.minutes > 0) {
-        const deltaSec = sign * durResult.minutes * 60;
+      if (durResult.seconds > 0) {
+        const deltaSec = sign * durResult.seconds;
         const updated = adjustActualTime(todos, idx, deltaSec);
         saveTodos(updated);
         const newActual = updated[idx - 1].actualTime || 0;

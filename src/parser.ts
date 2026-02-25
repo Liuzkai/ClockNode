@@ -37,50 +37,74 @@ const ALIASES: Record<string, string> = {
 /** Forbidden time units (day and above) */
 const FORBIDDEN_UNITS = /^(d|day|days|w|week|weeks|mon|month|months|y|year|years)$/i;
 
+/** Supported time unit regex (s/sec/m/min/h and forbidden units) */
+const DURATION_UNIT_RE = /^(\d+(?:\.\d+)?)\s*(s|sec|m|min|h|d|day|days|w|week|weeks|mon|month|months|y|year|years)$/i;
+
+/**
+ * Parse a duration string into seconds.
+ * Supports:
+ *   - Plain number: treated as minutes (e.g. "20" → 1200s)
+ *   - Number + unit: "30s"/"30sec" → 30s; "20m"/"20min" → 1200s; "2h" → 7200s
+ *   - Presets: "01"~"04" → COUNTDOWN_PRESETS (in minutes, converted to seconds)
+ *   - Forbidden units (d/w/mon/y): returns { seconds: 3600, warning: '...' }
+ *
+ * Returns { seconds, warning? }
+ */
+export function parseDurationSeconds(raw: string): { seconds: number; warning?: string } {
+  // Preset: starts with 0 and is 2 chars (e.g. "01", "02")
+  if (raw.startsWith('0') && raw.length === 2) {
+    const presetKey = raw;
+    if (COUNTDOWN_PRESETS[presetKey] !== undefined) {
+      return { seconds: COUNTDOWN_PRESETS[presetKey] * 60 };
+    }
+    return { seconds: (parseInt(raw, 10) || 60) * 60 };
+  }
+
+  // Number + unit
+  const unitMatch = raw.match(DURATION_UNIT_RE);
+  if (unitMatch) {
+    const num = parseFloat(unitMatch[1]);
+    const unit = unitMatch[2].toLowerCase();
+
+    if (FORBIDDEN_UNITS.test(unit)) {
+      return { seconds: 3600, warning: `Unit "${unit}" is not supported (max unit: h). Using default 60m.` };
+    }
+
+    if (unit === 's' || unit === 'sec') {
+      return { seconds: Math.round(num) };
+    }
+    if (unit === 'h') {
+      return { seconds: Math.round(num * 3600) };
+    }
+    // m, min
+    return { seconds: Math.round(num * 60) || 3600 };
+  }
+
+  // Plain number (minutes)
+  const num = parseInt(raw, 10);
+  if (num && num > 0) {
+    return { seconds: num * 60 };
+  }
+
+  return { seconds: 3600 };
+}
+
 /**
  * Parse a duration string into minutes.
  * Supports:
  *   - Plain number: treated as minutes (e.g. "20" → 20)
- *   - Number + unit: "20m", "20min" → 20; "2h" → 120
+ *   - Number + unit: "30s"/"30sec" → 1; "20m"/"20min" → 20; "2h" → 120
  *   - Presets: "01"~"04" → COUNTDOWN_PRESETS
  *   - Forbidden units (d/w/mon/y): returns { minutes: 60, warning: '...' }
  *
  * Returns { minutes, warning? }
  */
 export function parseDuration(raw: string): { minutes: number; warning?: string } {
-  // Preset: starts with 0 and is 2 chars (e.g. "01", "02")
-  if (raw.startsWith('0') && raw.length === 2) {
-    const presetKey = raw;
-    if (COUNTDOWN_PRESETS[presetKey] !== undefined) {
-      return { minutes: COUNTDOWN_PRESETS[presetKey] };
-    }
-    return { minutes: parseInt(raw, 10) || 60 };
-  }
-
-  // Number + unit
-  const unitMatch = raw.match(/^(\d+(?:\.\d+)?)\s*(m|min|h|d|day|days|w|week|weeks|mon|month|months|y|year|years)$/i);
-  if (unitMatch) {
-    const num = parseFloat(unitMatch[1]);
-    const unit = unitMatch[2].toLowerCase();
-
-    if (FORBIDDEN_UNITS.test(unit)) {
-      return { minutes: 60, warning: `Unit "${unit}" is not supported (max unit: h). Using default 60m.` };
-    }
-
-    if (unit === 'h') {
-      return { minutes: Math.round(num * 60) };
-    }
-    // m, min
-    return { minutes: Math.round(num) || 60 };
-  }
-
-  // Plain number (minutes)
-  const num = parseInt(raw, 10);
-  if (num && num > 0) {
-    return { minutes: num };
-  }
-
-  return { minutes: 60 };
+  const result = parseDurationSeconds(raw);
+  return {
+    minutes: Math.max(1, Math.round(result.seconds / 60)),
+    warning: result.warning,
+  };
 }
 
 /**
