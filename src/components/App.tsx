@@ -33,6 +33,8 @@ import {
   markDone,
   markUndone,
   setTag,
+  removeTag,
+  renameTag,
   setPriority,
   sortTodos,
   clearDone,
@@ -935,21 +937,58 @@ export const App: React.FC = () => {
       }
 
       case 'tag': {
-        if (args[0] === '*') {
-          const tag = args[1];
-          if (tag) {
+        const tagVal = args[1];
+        if (!tagVal) break;
+
+        if (tagVal.startsWith('-')) {
+          // Remove tag: /tag N -tagname
+          const tag = tagVal.slice(1);
+          if (!tag) break;
+          if (args[0] === '*') {
+            setTodos(prev => prev.map(t => ({
+              ...t,
+              tags: t.tags.filter(tg => tg !== tag),
+            })));
+            notify(`Removed tag #${tag} from all items`);
+          } else {
+            const idx = parseInt(args[0], 10);
+            if (idx) {
+              setTodos(prev => removeTag(prev, idx, tag));
+              notify(`Removed tag #${tag} from item ${idx}`);
+            }
+          }
+        } else if (tagVal.includes(':')) {
+          // Rename tag: /tag N old:new
+          const [oldTag, newTag] = tagVal.split(':');
+          if (!oldTag || !newTag) break;
+          if (args[0] === '*') {
+            setTodos(prev => prev.map(t => {
+              const tags = t.tags.map(tg => tg === oldTag ? newTag : tg);
+              return { ...t, tags: [...new Set(tags)] };
+            }));
+            notify(`Renamed tag #${oldTag} → #${newTag} on all items`);
+          } else {
+            const idx = parseInt(args[0], 10);
+            if (idx) {
+              setTodos(prev => renameTag(prev, idx, oldTag, newTag));
+              notify(`Renamed tag #${oldTag} → #${newTag} on item ${idx}`);
+            }
+          }
+        } else {
+          // Add tag (original behavior)
+          const tag = tagVal;
+          if (args[0] === '*') {
             setTodos(prev => prev.map(t => {
               const tags = t.tags.includes(tag) ? t.tags : [...t.tags, tag];
               return { ...t, tags };
             }));
             notify(`Tagged all items with #${tag}`);
-          }
-        } else {
-          const idx = parseInt(args[0], 10);
-          const tag = args[1];
-          if (idx && tag) {
-            setTodos(prev => setTag(prev, idx, tag));
-            notify(`Tagged item ${idx} with #${tag}`);
+          } else {
+            const idx = parseInt(args[0], 10);
+            if (idx) {
+              setTodos(prev => setTag(prev, idx, tag));
+              notify(`Tagged item ${idx} with #${tag}`);
+            }
           }
         }
         break;
@@ -957,20 +996,32 @@ export const App: React.FC = () => {
 
       case 'priority': {
         const pMap: Record<string, Priority> = { h: Priority.High, m: Priority.Mid, l: Priority.Low, high: Priority.High, mid: Priority.Mid, low: Priority.Low };
-        if (args[0] === '*') {
-          const rawP = args[1]?.toLowerCase();
-          const p = pMap[rawP];
-          if (p) {
-            setTodos(prev => prev.map(t => ({ ...t, priority: p })));
-            notify(`Set all items priority to ${p}`);
+        const rawP = args[1]?.toLowerCase();
+        if (rawP === '-' || rawP === 'none' || rawP === 'n') {
+          // Clear priority
+          if (args[0] === '*') {
+            setTodos(prev => prev.map(t => ({ ...t, priority: Priority.None })));
+            notify('Cleared priority on all items');
+          } else {
+            const idx = parseInt(args[0], 10);
+            if (idx) {
+              setTodos(prev => setPriority(prev, idx, Priority.None));
+              notify(`Cleared priority on item ${idx}`);
+            }
           }
         } else {
-          const idx = parseInt(args[0], 10);
-          const rawP = args[1]?.toLowerCase();
           const p = pMap[rawP];
-          if (idx && p) {
-            setTodos(prev => setPriority(prev, idx, p));
-            notify(`Set item ${idx} priority to ${p}`);
+          if (args[0] === '*') {
+            if (p) {
+              setTodos(prev => prev.map(t => ({ ...t, priority: p })));
+              notify(`Set all items priority to ${p}`);
+            }
+          } else {
+            const idx = parseInt(args[0], 10);
+            if (idx && p) {
+              setTodos(prev => setPriority(prev, idx, p));
+              notify(`Set item ${idx} priority to ${p}`);
+            }
           }
         }
         break;

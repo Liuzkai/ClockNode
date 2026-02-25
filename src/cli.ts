@@ -8,8 +8,11 @@
 //   clocknode --delete 3        --delete 1-5   --delete *
 //   clocknode --edit "1 新内容"
 //   clocknode --now 4
-//   clocknode --tag 1 work      --tag * work
-//   clocknode --priority 1 h    --priority * m
+//   clocknode --tag 1 work      --tag * work       (add)
+//   clocknode --tag 1 -work     --tag * -work      (remove)
+//   clocknode --tag 1 old:new   --tag * old:new    (rename)
+//   clocknode --priority 1 h    --priority * m     (set)
+//   clocknode --priority 1 -    --priority * none  (clear)
 //   clocknode --sort p
 //   clocknode --list
 //   clocknode --clear_done
@@ -33,6 +36,8 @@ import {
   resetTodo,
   resetRange,
   setTag,
+  removeTag,
+  renameTag,
   setPriority,
   sortTodos,
   addDoneRecord,
@@ -287,31 +292,95 @@ export function handleBatchCli(args: string[]): CliResult[] | null {
       const idxStr = args[++i];
       const tagVal = args[++i];
       if (!idxStr || !tagVal) {
-        results.push({ success: false, message: 'Usage: --tag <N|*> <tag>' });
+        results.push({ success: false, message: 'Usage: --tag <N|*> <tag|-tag|old:new>' });
         i++;
         continue;
       }
       const todos = loadTodos();
-      if (idxStr === '*') {
-        let updated = [...todos];
-        for (let j = 0; j < updated.length; j++) {
-          updated = setTag(updated, j + 1, tagVal);
-        }
-        saveTodos(updated);
-        results.push({ success: true, message: `Tagged all ${updated.length} items with "${tagVal}"` });
-      } else {
-        const idx = parseInt(idxStr, 10);
-        if (!idx || idx < 1) {
-          results.push({ success: false, message: `Invalid index: ${idxStr}` });
+
+      if (tagVal.startsWith('-')) {
+        // Remove tag
+        const tag = tagVal.slice(1);
+        if (!tag) {
+          results.push({ success: false, message: 'Missing tag name after -' });
           i++;
           continue;
         }
-        if (idx > todos.length) {
-          results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
-        } else {
-          const updated = setTag(todos, idx, tagVal);
+        if (idxStr === '*') {
+          let updated = [...todos];
+          for (let j = 0; j < updated.length; j++) {
+            updated = removeTag(updated, j + 1, tag);
+          }
           saveTodos(updated);
-          results.push({ success: true, message: `Tagged item ${idx} with "${tagVal}"` });
+          results.push({ success: true, message: `Removed tag "${tag}" from all ${updated.length} items` });
+        } else {
+          const idx = parseInt(idxStr, 10);
+          if (!idx || idx < 1) {
+            results.push({ success: false, message: `Invalid index: ${idxStr}` });
+            i++;
+            continue;
+          }
+          if (idx > todos.length) {
+            results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
+          } else {
+            const updated = removeTag(todos, idx, tag);
+            saveTodos(updated);
+            results.push({ success: true, message: `Removed tag "${tag}" from item ${idx}` });
+          }
+        }
+      } else if (tagVal.includes(':')) {
+        // Rename tag
+        const [oldTag, newTag] = tagVal.split(':');
+        if (!oldTag || !newTag) {
+          results.push({ success: false, message: 'Usage: --tag <N|*> old:new' });
+          i++;
+          continue;
+        }
+        if (idxStr === '*') {
+          let updated = [...todos];
+          for (let j = 0; j < updated.length; j++) {
+            updated = renameTag(updated, j + 1, oldTag, newTag);
+          }
+          saveTodos(updated);
+          results.push({ success: true, message: `Renamed tag "${oldTag}" → "${newTag}" on all ${updated.length} items` });
+        } else {
+          const idx = parseInt(idxStr, 10);
+          if (!idx || idx < 1) {
+            results.push({ success: false, message: `Invalid index: ${idxStr}` });
+            i++;
+            continue;
+          }
+          if (idx > todos.length) {
+            results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
+          } else {
+            const updated = renameTag(todos, idx, oldTag, newTag);
+            saveTodos(updated);
+            results.push({ success: true, message: `Renamed tag "${oldTag}" → "${newTag}" on item ${idx}` });
+          }
+        }
+      } else {
+        // Add tag (original behavior)
+        if (idxStr === '*') {
+          let updated = [...todos];
+          for (let j = 0; j < updated.length; j++) {
+            updated = setTag(updated, j + 1, tagVal);
+          }
+          saveTodos(updated);
+          results.push({ success: true, message: `Tagged all ${updated.length} items with "${tagVal}"` });
+        } else {
+          const idx = parseInt(idxStr, 10);
+          if (!idx || idx < 1) {
+            results.push({ success: false, message: `Invalid index: ${idxStr}` });
+            i++;
+            continue;
+          }
+          if (idx > todos.length) {
+            results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
+          } else {
+            const updated = setTag(todos, idx, tagVal);
+            saveTodos(updated);
+            results.push({ success: true, message: `Tagged item ${idx} with "${tagVal}"` });
+          }
         }
       }
       i++;
@@ -323,38 +392,66 @@ export function handleBatchCli(args: string[]): CliResult[] | null {
       const idxStr = args[++i];
       const prioStr = args[++i];
       if (!idxStr || !prioStr) {
-        results.push({ success: false, message: 'Usage: --priority <N|*> <h|m|l>' });
+        results.push({ success: false, message: 'Usage: --priority <N|*> <h|m|l|none|->' });
         i++;
         continue;
       }
-      const prioMap: Record<string, Priority> = { h: Priority.High, m: Priority.Mid, l: Priority.Low };
-      const prio = prioMap[prioStr.toLowerCase()];
-      if (!prio) {
-        results.push({ success: false, message: `Invalid priority: "${prioStr}". Use h, m, or l.` });
-        i++;
-        continue;
-      }
-      const todos = loadTodos();
-      if (idxStr === '*') {
-        let updated = [...todos];
-        for (let j = 0; j < updated.length; j++) {
-          updated = setPriority(updated, j + 1, prio);
+      const lower = prioStr.toLowerCase();
+      if (lower === '-' || lower === 'none' || lower === 'n') {
+        // Clear priority
+        const todos = loadTodos();
+        if (idxStr === '*') {
+          let updated = [...todos];
+          for (let j = 0; j < updated.length; j++) {
+            updated = setPriority(updated, j + 1, Priority.None);
+          }
+          saveTodos(updated);
+          results.push({ success: true, message: `Cleared priority on all ${updated.length} items` });
+        } else {
+          const idx = parseInt(idxStr, 10);
+          if (!idx || idx < 1) {
+            results.push({ success: false, message: `Invalid index: ${idxStr}` });
+            i++;
+            continue;
+          }
+          if (idx > todos.length) {
+            results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
+          } else {
+            const updated = setPriority(todos, idx, Priority.None);
+            saveTodos(updated);
+            results.push({ success: true, message: `Cleared priority on item ${idx}` });
+          }
         }
-        saveTodos(updated);
-        results.push({ success: true, message: `Set priority of all ${updated.length} items to ${prio}` });
       } else {
-        const idx = parseInt(idxStr, 10);
-        if (!idx || idx < 1) {
-          results.push({ success: false, message: `Invalid index: ${idxStr}` });
+        const prioMap: Record<string, Priority> = { h: Priority.High, m: Priority.Mid, l: Priority.Low };
+        const prio = prioMap[lower];
+        if (!prio) {
+          results.push({ success: false, message: `Invalid priority: "${prioStr}". Use h, m, l, none, or -.` });
           i++;
           continue;
         }
-        if (idx > todos.length) {
-          results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
-        } else {
-          const updated = setPriority(todos, idx, prio);
+        const todos = loadTodos();
+        if (idxStr === '*') {
+          let updated = [...todos];
+          for (let j = 0; j < updated.length; j++) {
+            updated = setPriority(updated, j + 1, prio);
+          }
           saveTodos(updated);
-          results.push({ success: true, message: `Set item ${idx} priority to ${prio}` });
+          results.push({ success: true, message: `Set priority of all ${updated.length} items to ${prio}` });
+        } else {
+          const idx = parseInt(idxStr, 10);
+          if (!idx || idx < 1) {
+            results.push({ success: false, message: `Invalid index: ${idxStr}` });
+            i++;
+            continue;
+          }
+          if (idx > todos.length) {
+            results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
+          } else {
+            const updated = setPriority(todos, idx, prio);
+            saveTodos(updated);
+            results.push({ success: true, message: `Set item ${idx} priority to ${prio}` });
+          }
         }
       }
       i++;

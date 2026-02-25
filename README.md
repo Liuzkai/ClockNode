@@ -78,11 +78,19 @@ clocknode --edit "1 @2h"
 clocknode --edit "1 @+10min"
 clocknode --edit "1 @-30s"
 
-# Tag / Priority
+# Tag (add / remove / rename)
 clocknode --tag 1 work
 clocknode --tag "*" urgent
+clocknode --tag 1 -work
+clocknode --tag "*" -urgent
+clocknode --tag 1 work:personal
+clocknode --tag "*" old:new
+
+# Priority (set / clear)
 clocknode --priority 1 h
 clocknode --priority "*" m
+clocknode --priority 1 -
+clocknode --priority "*" none
 
 # Sort (p=priority, s=status, c=created)
 clocknode --sort p
@@ -150,8 +158,11 @@ All commands start with `/` in the interactive UI.
 | `/edit <N> @-<dur>` | `e` | Decrease task #N actual time (clamped to 0) |
 | `/done <N\|*>` | `ok` | Mark task done (`*` = all pending) |
 | `/undo <N\|*>` | `u` | Revert to pending (`*` = all completed) |
-| `/tag <N\|*> <tag>` | `t` | Set tag (`*` = all items) |
+| `/tag <N\|*> <tag>` | `t` | Add tag (`*` = all items) |
+| `/tag <N\|*> -<tag>` | `t` | Remove tag |
+| `/tag <N\|*> <old>:<new>` | `t` | Rename tag |
 | `/priority <N\|*> <h\|m\|l>` | `p` | Set priority (`*` = all items) |
+| `/priority <N\|*> <-\|none>` | `p` | Clear priority |
 | `/sort <p\|s\|c>` | `s` | Sort (p=priority, s=status, c=created) |
 | `/clear` | `cl` | Remove all completed tasks |
 | `/reset [N\|N-M\|*]` | `rs` | Reset tasks to pending (N, N-M range, `*` or no arg = all) |
