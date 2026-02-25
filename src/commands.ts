@@ -107,8 +107,8 @@ export const COMMANDS: CommandDef[] = [
   {
     name: 'edit',
     aliases: ['e'],
-    usage: '/edit <N> <text|#pos|@min>',
-    description: 'Edit content, move (#N), or set duration (@N)',
+    usage: '/edit <N> <text|#pos|@min|@+/-min>',
+    description: 'Edit content, move (#N), set duration (@N), adjust actualTime (@+N/@-N)',
   },
   {
     name: 'tag',

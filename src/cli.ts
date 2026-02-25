@@ -506,7 +506,7 @@ function editTask(raw: string): CliResult {
 
   const arg = parts[1];
   if (!arg) {
-    return { success: false, message: 'Missing edit content. Usage: --edit "N new text" or "N #M" or "N @M"' };
+    return { success: false, message: 'Missing edit content. Usage: --edit "N new text" or "N #M" or "N @M" or "N @+M/@-M"' };
   }
 
   if (arg.startsWith('#')) {
