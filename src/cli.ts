@@ -40,6 +40,7 @@ import {
   saveDoneHistory,
   deleteDoneRecord,
   deleteDoneRecordRange,
+  adjustActualTime,
 } from './store.js';
 import { TodoStatus, Priority } from './types.js';
 import { icons } from './icons.js';
@@ -516,14 +517,34 @@ function editTask(raw: string): CliResult {
       return { success: true, message: `Moved item ${idx} → position ${toIdx}` };
     }
   } else if (arg.startsWith('@')) {
-    const durResult = parseDuration(arg.slice(1));
-    if (durResult.warning) {
-      return { success: false, message: durResult.warning };
-    }
-    if (durResult.minutes > 0) {
-      const updated = setDuration(todos, idx, durResult.minutes);
-      saveTodos(updated);
-      return { success: true, message: `Set item ${idx} duration to ${durResult.minutes}m` };
+    const afterAt = arg.slice(1);
+    if (afterAt.startsWith('+') || afterAt.startsWith('-')) {
+      // Adjust actualTime: --edit "1 @+10min" or --edit "1 @-1h"
+      const sign = afterAt.startsWith('+') ? 1 : -1;
+      const durResult = parseDuration(afterAt.slice(1));
+      if (durResult.warning) {
+        return { success: false, message: durResult.warning };
+      }
+      if (durResult.minutes > 0) {
+        const deltaSec = sign * durResult.minutes * 60;
+        const updated = adjustActualTime(todos, idx, deltaSec);
+        saveTodos(updated);
+        const newActual = updated[idx - 1].actualTime || 0;
+        const hh = String(Math.floor(newActual / 3600)).padStart(2, '0');
+        const mm = String(Math.floor((newActual % 3600) / 60)).padStart(2, '0');
+        const ss = String(newActual % 60).padStart(2, '0');
+        return { success: true, message: `Item ${idx} actualTime → ${hh}:${mm}:${ss}` };
+      }
+    } else {
+      const durResult = parseDuration(afterAt);
+      if (durResult.warning) {
+        return { success: false, message: durResult.warning };
+      }
+      if (durResult.minutes > 0) {
+        const updated = setDuration(todos, idx, durResult.minutes);
+        saveTodos(updated);
+        return { success: true, message: `Set item ${idx} duration to ${durResult.minutes}m` };
+      }
     }
   } else {
     const text = parts.slice(1).join(' ');

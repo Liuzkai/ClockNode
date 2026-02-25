@@ -44,6 +44,7 @@ import {
   addDoneRecord,
   deleteDoneRecord,
   deleteDoneRecordRange,
+  adjustActualTime,
 } from '../store.js';
 import { parseInput, parseDuration } from '../parser.js';
 import { triggerNotification } from '../notify.js';
@@ -827,14 +828,32 @@ export const App: React.FC = () => {
             notify(`Moved item ${idx} → position ${toIdx}`);
           }
         } else if (arg.startsWith('@') && !args[2]) {
-          // Change duration only: /edit 1 @55 or /edit 1 @2h
-          const durResult = parseDuration(arg.slice(1));
-          if (durResult.warning) {
-            notify(`${icons.warning} ${durResult.warning}`);
-          }
-          if (durResult.minutes > 0) {
-            setTodos(prev => setDuration(prev, idx, durResult.minutes));
-            notify(`Set item ${idx} duration to ${durResult.minutes}m`);
+          const afterAt = arg.slice(1);
+          if (afterAt.startsWith('+') || afterAt.startsWith('-')) {
+            // Adjust actualTime: /edit 1 @+10min or /edit 1 @-1h
+            const sign = afterAt.startsWith('+') ? 1 : -1;
+            const durResult = parseDuration(afterAt.slice(1));
+            if (durResult.warning) {
+              notify(`${icons.warning} ${durResult.warning}`);
+            } else if (durResult.minutes > 0) {
+              const deltaSec = sign * durResult.minutes * 60;
+              setTodos(prev => {
+                const updated = adjustActualTime(prev, idx, deltaSec);
+                const newActual = updated[idx - 1].actualTime || 0;
+                notify(`Item ${idx} actualTime → ${formatTime(newActual)}`);
+                return updated;
+              });
+            }
+          } else {
+            // Change duration only: /edit 1 @55 or /edit 1 @2h
+            const durResult = parseDuration(afterAt);
+            if (durResult.warning) {
+              notify(`${icons.warning} ${durResult.warning}`);
+            }
+            if (durResult.minutes > 0) {
+              setTodos(prev => setDuration(prev, idx, durResult.minutes));
+              notify(`Set item ${idx} duration to ${durResult.minutes}m`);
+            }
           }
         } else {
           // Edit content (and optionally duration): /edit 1 new text @30 or @2h

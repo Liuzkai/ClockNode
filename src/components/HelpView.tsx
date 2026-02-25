@@ -30,7 +30,7 @@ export const HelpView: React.FC = () => {
       ['#N <text> [@M]', 'Insert TODO at position N'],
       ['<text> @0N', 'Add TODO with preset time (01=5m...)'],
       ['/delete N|N-M|*, /d ..', 'Delete TODO (N-M = range, * = all)'],
-      ['/edit N .., /e N ..', 'Edit text | /e N #M move | /e N @M duration'],
+      ['/edit N .., /e N ..', 'Edit text | /e N #M move | /e N @M duration | /e N @+M/@-M actual time'],
       ['/done N|*, /ok N|*', 'Mark done (* = all pending)'],
       ['/undo N|*, /u N|*', 'Undo done (* = all completed)'],
       ['/tag N|* tag', 'Add tag (* = all items)'],

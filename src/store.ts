@@ -95,6 +95,17 @@ export function setDuration(todos: TodoItem[], index: number, duration: number):
   return newTodos;
 }
 
+export function adjustActualTime(todos: TodoItem[], index: number, deltaSec: number): TodoItem[] {
+  if (index < 1 || index > todos.length) return todos;
+  const newTodos = [...todos];
+  const current = newTodos[index - 1].actualTime || 0;
+  newTodos[index - 1] = {
+    ...newTodos[index - 1],
+    actualTime: Math.max(0, current + deltaSec),
+  };
+  return newTodos;
+}
+
 export function markDone(todos: TodoItem[], index: number): TodoItem[] {
   if (index < 1 || index > todos.length) return todos;
   const newTodos = [...todos];
