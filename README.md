@@ -16,7 +16,7 @@ A feature-rich terminal clock, timer, and TODO management tool built with [React
 - **TODO Countdown Queue** — Sequential task countdowns with overtime tracking, progress recovery, and queue merging
 - **Done History** — Persistent log of all completed tasks with actual time spent; viewable via `/history` or `--history`
 - **Countdown Persistence** — Timer progress auto-saved on exit (Ctrl+C, close terminal) and periodically; resume from where you left off
-- **Duration Units** — `@20` (minutes), `@20m`/`@20min`, `@2h`; forbidden units (day+) warn and fallback to 60m
+- **Duration Units** — `@20` (minutes), `@20m`/`@20min`, `@2h`, `@30s`/`@30sec`; forbidden units (day+) warn and fallback to 60m
 - **Wildcard `*` Support** — Batch operations on all items (`/done *`, `/delete *`, `/start *`, etc.)
 - **Range Delete** — `/delete N-M` to delete a range of items
 - **Dangerous Op Confirmation** — `/delete *` requires repeat-to-confirm with live countdown
@@ -71,10 +71,12 @@ clocknode --delete 1
 clocknode --del 2-5
 clocknode --delete "*"
 
-# Edit task content / move position / set duration
+# Edit task content / move position / set duration / adjust actual time
 clocknode --edit "2 Updated content"
 clocknode --edit "3 #1"
 clocknode --edit "1 @2h"
+clocknode --edit "1 @+10min"
+clocknode --edit "1 @-30s"
 
 # Tag / Priority
 clocknode --tag 1 work
@@ -144,13 +146,15 @@ All commands start with `/` in the interactive UI.
 | `/edit <N> <text> [@dur]` | `e` | Edit task #N content (and optionally duration) |
 | `/edit <N> #<M>` | `e` | Move task #N to position #M |
 | `/edit <N> @<dur>` | `e` | Change task #N duration |
+| `/edit <N> @+<dur>` | `e` | Increase task #N actual time (e.g., `@+10min`, `@+30s`) |
+| `/edit <N> @-<dur>` | `e` | Decrease task #N actual time (clamped to 0) |
 | `/done <N\|*>` | `ok` | Mark task done (`*` = all pending) |
 | `/undo <N\|*>` | `u` | Revert to pending (`*` = all completed) |
 | `/tag <N\|*> <tag>` | `t` | Set tag (`*` = all items) |
 | `/priority <N\|*> <h\|m\|l>` | `p` | Set priority (`*` = all items) |
 | `/sort <p\|s\|c>` | `s` | Sort (p=priority, s=status, c=created) |
 | `/clear` | `cl` | Remove all completed tasks |
-| `/reset` | `rs` | Reset all tasks to pending state |
+| `/reset [N\|N-M\|*]` | `rs` | Reset tasks to pending (N, N-M range, `*` or no arg = all) |
 | `/history` | `hi` | Show completed tasks history with actual time |
 | `/back` | `b` | Return from history view to TODO list |
 
@@ -177,7 +181,7 @@ Deploy release @2h         # 2-hour task
 Study notes               # Default 60-minute duration
 ```
 
-**Duration formats**: `@20` (minutes), `@20m` / `@20min` (minutes), `@2h` (hours), `@01`–`@04` (presets: 5/10/30/60 min). Day-and-above units are forbidden and fallback to 60m with a warning.
+**Duration formats**: `@20` (minutes), `@20m` / `@20min` (minutes), `@2h` (hours), `@30s` / `@30sec` (seconds), `@01`–`@04` (presets: 5/10/30/60 min). Day-and-above units are forbidden and fallback to 60m with a warning.
 
 **Multi-line paste**: Copy multiple lines and paste them into the input — each line is added as a separate task automatically.
 
