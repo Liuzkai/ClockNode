@@ -13,7 +13,7 @@
 //   clocknode --sort p
 //   clocknode --list
 //   clocknode --clear_done
-//   clocknode --reset
+//   clocknode --reset           --reset 2   --reset 1-5   --reset *
 //   clocknode --history
 
 import { parseInput, parseDuration } from './parser.js';
@@ -30,6 +30,8 @@ import {
   markUndone,
   clearDone,
   resetAll,
+  resetTodo,
+  resetRange,
   setTag,
   setPriority,
   sortTodos,
@@ -382,10 +384,45 @@ export function handleBatchCli(args: string[]): CliResult[] | null {
 
     if (arg === '--reset') {
       hasBatchCmd = true;
+      // Peek next arg: if missing or starts with '--', treat as reset-all
+      const nextArg = args[i + 1];
+      const value = (nextArg && !nextArg.startsWith('--')) ? (i++, nextArg) : undefined;
       const todos = loadTodos();
-      const updated = resetAll(todos);
-      saveTodos(updated);
-      results.push({ success: true, message: `Reset ${updated.length} items to pending.` });
+
+      if (!value || value === '*') {
+        // Reset all
+        const updated = resetAll(todos);
+        saveTodos(updated);
+        results.push({ success: true, message: `Reset ${updated.length} items to pending.` });
+      } else if (value.includes('-')) {
+        const [fromStr, toStr] = value.split('-');
+        const from = parseInt(fromStr, 10);
+        const to = parseInt(toStr, 10);
+        if (!from || !to || from < 1 || to < 1) {
+          results.push({ success: false, message: `Invalid range: ${value}` });
+          i++;
+          continue;
+        }
+        const start = Math.max(1, Math.min(from, to));
+        const end = Math.min(todos.length, Math.max(from, to));
+        const updated = resetRange(todos, from, to);
+        saveTodos(updated);
+        results.push({ success: true, message: `Reset items ${start}-${end} to pending.` });
+      } else {
+        const idx = parseInt(value, 10);
+        if (!idx || idx < 1) {
+          results.push({ success: false, message: `Invalid index: ${value}` });
+          i++;
+          continue;
+        }
+        if (idx > todos.length) {
+          results.push({ success: false, message: `Index ${idx} out of range (${todos.length} items)` });
+        } else {
+          const updated = resetTodo(todos, idx);
+          saveTodos(updated);
+          results.push({ success: true, message: `Reset item ${idx}: "${todos[idx - 1].content}" to pending.` });
+        }
+      }
       i++;
       continue;
     }

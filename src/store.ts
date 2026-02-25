@@ -181,6 +181,34 @@ export function resetAll(todos: TodoItem[]): TodoItem[] {
   }));
 }
 
+export function resetTodo(todos: TodoItem[], index: number): TodoItem[] {
+  if (index < 1 || index > todos.length) return todos;
+  const newTodos = [...todos];
+  newTodos[index - 1] = {
+    ...newTodos[index - 1],
+    status: TodoStatus.Pending,
+    actualTime: undefined,
+    completedAt: undefined,
+  };
+  return newTodos;
+}
+
+export function resetRange(todos: TodoItem[], from: number, to: number): TodoItem[] {
+  const start = Math.max(1, Math.min(from, to));
+  const end = Math.min(todos.length, Math.max(from, to));
+  if (start > todos.length || end < 1) return todos;
+  const newTodos = [...todos];
+  for (let i = start - 1; i < end; i++) {
+    newTodos[i] = {
+      ...newTodos[i],
+      status: TodoStatus.Pending,
+      actualTime: undefined,
+      completedAt: undefined,
+    };
+  }
+  return newTodos;
+}
+
 // ============================================================
 // Done History (persisted to ~/.clocknode/done_history.json)
 // ============================================================

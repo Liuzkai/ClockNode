@@ -37,7 +37,7 @@ export const HelpView: React.FC = () => {
       ['/priority N|* L', 'Set priority h|m|l (* = all)'],
       ['/sort BY, /s BY', 'Sort (p=priority s=status c=created)'],
       ['/clear, /cl', 'Clear completed TODOs'],
-      ['/reset, /rs', 'Reset all to pending'],
+      ['/reset N|N-M|*, /rs ..', 'Reset to pending (N-M = range, * or no arg = all)'],
       ['/history, /hi', 'Show completed tasks history'],
       ['/back, /b', 'Return from history view'],
     ]],

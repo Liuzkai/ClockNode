@@ -137,8 +137,8 @@ export const COMMANDS: CommandDef[] = [
   {
     name: 'reset',
     aliases: ['rs'],
-    usage: '/reset',
-    description: 'Reset all TODOs to pending (clear progress & status)',
+    usage: '/reset [N|N-M|*]',
+    description: 'Reset TODOs to pending (N = single, N-M = range, * or no arg = all)',
   },
   {
     name: 'history',

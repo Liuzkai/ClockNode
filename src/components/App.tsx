@@ -37,6 +37,8 @@ import {
   sortTodos,
   clearDone,
   resetAll,
+  resetTodo,
+  resetRange,
   loadDoneHistory,
   saveDoneHistory,
   addDoneRecord,
@@ -979,8 +981,31 @@ export const App: React.FC = () => {
           setTodoCountdown(null);
           setMode(Mode.Clock);
         }
-        setTodos(prev => resetAll(prev));
-        notify(`${icons.reset} All tasks reset to pending`);
+
+        if (!args[0] || args[0] === '*') {
+          // Reset all — requires confirmation
+          if (!requireConfirm('reset*', `Reset ALL ${todos.length} items to pending?`)) break;
+          setTodos(prev => resetAll(prev));
+          notify(`${icons.reset} All tasks reset to pending`);
+        } else {
+          const rangeMatch = args[0].match(/^(\d+)-(\d+)$/);
+          if (rangeMatch) {
+            const from = parseInt(rangeMatch[1], 10);
+            const to = parseInt(rangeMatch[2], 10);
+            const start = Math.max(1, Math.min(from, to));
+            const end = Math.min(todos.length, Math.max(from, to));
+            if (start <= todos.length && end >= 1) {
+              setTodos(prev => resetRange(prev, from, to));
+              notify(`${icons.reset} Reset items ${start}-${end} to pending`);
+            }
+          } else {
+            const idx = parseInt(args[0], 10);
+            if (idx && idx >= 1 && idx <= todos.length) {
+              setTodos(prev => resetTodo(prev, idx));
+              notify(`${icons.reset} Reset item ${idx} to pending`);
+            }
+          }
+        }
         break;
       }
 
