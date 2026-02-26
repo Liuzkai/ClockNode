@@ -44,6 +44,9 @@ import {
 } from './store.js';
 import { TodoStatus, Priority } from './types.js';
 import { icons } from './icons.js';
+import { loadNotionConfig, saveNotionConfig, getNotionStatus } from './notion-config.js';
+import { loadSyncMap } from './notion-sync.js';
+import { resetNotionClient } from './notion.js';
 
 interface CliResult {
   success: boolean;
@@ -463,6 +466,50 @@ export function handleBatchCli(args: string[]): CliResult[] | null {
       const removed = todos.length - updated.length;
       saveTodos(updated);
       results.push({ success: true, message: `Cleared ${removed} completed items.` });
+      i++;
+      continue;
+    }
+
+    if (arg === '--notion') {
+      hasBatchCmd = true;
+      const status = getNotionStatus();
+      if (!status.configured) {
+        results.push({ success: true, message: 'Notion: not configured. Use --notion_setup "token databaseId" to set up.' });
+      } else {
+        const syncMap = loadSyncMap();
+        const lines = [
+          `Notion: configured`,
+          `  Token:       ${status.tokenPreview}`,
+          `  Database ID: ${status.databaseId}`,
+          `  Synced:      ${syncMap.entries.length} entries`,
+        ];
+        if (syncMap.lastSyncAt) {
+          lines.push(`  Last sync:   ${syncMap.lastSyncAt}`);
+        }
+        results.push({ success: true, message: lines.join('\n') });
+      }
+      i++;
+      continue;
+    }
+
+    if (arg === '--notion_setup') {
+      hasBatchCmd = true;
+      const value = args[++i];
+      if (!value) {
+        results.push({ success: false, message: 'Usage: --notion_setup "token databaseId"' });
+        i++;
+        continue;
+      }
+      const parts = value.trim().split(/\s+/);
+      if (parts.length < 2) {
+        results.push({ success: false, message: 'Usage: --notion_setup "token databaseId"' });
+        i++;
+        continue;
+      }
+      const [token, databaseId] = parts;
+      saveNotionConfig({ token, databaseId });
+      resetNotionClient();
+      results.push({ success: true, message: `Notion configured. Token: ${token.slice(0, 8)}..., DB: ${databaseId}` });
       i++;
       continue;
     }

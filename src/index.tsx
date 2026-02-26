@@ -37,6 +37,10 @@ if (args.includes('--help') || args.includes('-h')) {
   Multiple batch commands can be chained:
     clocknode --add_task "#1 task A @30" --add_task "#2 task B @60" --done 3
 
+  Notion integration:
+    clocknode --notion                               Show Notion config status
+    clocknode --notion_setup "secret_xxx db_id"      Configure Notion integration
+
   Running instance auto-refreshes when batch commands modify tasks.
 
   Interactive commands:

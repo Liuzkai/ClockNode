@@ -50,6 +50,11 @@ export const HelpView: React.FC = () => {
       ['/resume, /r', 'Resume countdown'],
       ['/stop, /sp', 'Stop entire flow'],
     ]],
+    ['Notion Integration', [
+      ['/notion, /nt', 'Show Notion sync status'],
+      ['/notion setup T ID', 'Configure Notion token + database ID'],
+      ['/notion disconnect', 'Remove Notion configuration'],
+    ]],
   ];
 
   return (

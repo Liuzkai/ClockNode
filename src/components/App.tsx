@@ -58,6 +58,10 @@ import { TodoCountdownView } from './TodoCountdownView.js';
 import { HelpView } from './HelpView.js';
 import { InputBar, getSuggestions } from './InputBar.js';
 import { DoneHistoryView } from './DoneHistoryView.js';
+import { loadNotionConfig, saveNotionConfig, getNotionStatus, removeNotionConfig } from '../notion-config.js';
+import { loadSyncMap } from '../notion-sync.js';
+import { testNotionConnection, resetNotionClient } from '../notion.js';
+import { NotionStatusView, type NotionStatusProps } from './NotionStatusView.js';
 
 export const App: React.FC = () => {
   const { exit } = useApp();
@@ -75,6 +79,11 @@ export const App: React.FC = () => {
   const [showHelp, setShowHelp] = useState(false);
   const [showDoneHistory, setShowDoneHistory] = useState(false);
   const [doneHistory, setDoneHistory] = useState<DoneRecord[]>(loadDoneHistory);
+  const [showNotionStatus, setShowNotionStatus] = useState(false);
+  const [notionStatusProps, setNotionStatusProps] = useState<NotionStatusProps>({
+    configured: false,
+    syncedCount: 0,
+  });
   const [scrollOffset, setScrollOffset] = useState(0);
   const [selectedSuggestion, setSelectedSuggestion] = useState(0);
 
@@ -543,6 +552,7 @@ export const App: React.FC = () => {
       case 'help': {
         setShowHelp(h => !h);
         setShowDoneHistory(false);
+        setShowNotionStatus(false);
         break;
       }
 
@@ -1244,6 +1254,7 @@ export const App: React.FC = () => {
       case 'history': {
         setShowDoneHistory(h => !h);
         setShowHelp(false);
+        setShowNotionStatus(false);
         setScrollOffset(0);
         if (!showDoneHistory) {
           setDoneHistory(loadDoneHistory());
@@ -1255,6 +1266,86 @@ export const App: React.FC = () => {
         if (showDoneHistory) {
           setShowDoneHistory(false);
           setScrollOffset(0);
+        } else if (showNotionStatus) {
+          setShowNotionStatus(false);
+        }
+        break;
+      }
+
+      case 'notion': {
+        if (args[0] === 'setup') {
+          const token = args[1];
+          const dbId = args[2];
+          if (!token || !dbId) {
+            notify('Usage: /notion setup <token> <database_id>');
+            break;
+          }
+          saveNotionConfig({ token, databaseId: dbId });
+          resetNotionClient();
+          notify('Notion configured. Testing connection...');
+          // Async connection test
+          testNotionConnection().then(result => {
+            if (result.ok) {
+              const syncMap = loadSyncMap();
+              setNotionStatusProps({
+                configured: true,
+                databaseId: dbId,
+                tokenPreview: token.length > 12 ? `${token.slice(0, 8)}...${token.slice(-4)}` : token.slice(0, 4) + '...',
+                syncedCount: syncMap.entries.length,
+                lastSyncAt: syncMap.lastSyncAt,
+                connectionStatus: 'connected',
+                databaseTitle: result.title,
+              });
+              setShowNotionStatus(true);
+              setShowHelp(false);
+              setShowDoneHistory(false);
+            } else {
+              setNotionStatusProps({
+                configured: true,
+                databaseId: dbId,
+                tokenPreview: token.length > 12 ? `${token.slice(0, 8)}...${token.slice(-4)}` : token.slice(0, 4) + '...',
+                syncedCount: 0,
+                connectionStatus: 'error',
+                errorMessage: result.error,
+              });
+              setShowNotionStatus(true);
+              setShowHelp(false);
+              setShowDoneHistory(false);
+            }
+          });
+        } else if (args[0] === 'disconnect') {
+          removeNotionConfig();
+          resetNotionClient();
+          setShowNotionStatus(false);
+          notify('Notion configuration removed.');
+        } else {
+          // No args: show status view
+          const status = getNotionStatus();
+          const syncMap = loadSyncMap();
+          const props: NotionStatusProps = {
+            configured: status.configured,
+            databaseId: status.databaseId,
+            tokenPreview: status.tokenPreview,
+            syncedCount: syncMap.entries.length,
+            lastSyncAt: syncMap.lastSyncAt,
+            connectionStatus: 'unknown',
+          };
+          setNotionStatusProps(props);
+          setShowNotionStatus(true);
+          setShowHelp(false);
+          setShowDoneHistory(false);
+
+          // Async connection test
+          if (status.configured) {
+            testNotionConnection().then(result => {
+              setNotionStatusProps(prev => ({
+                ...prev,
+                connectionStatus: result.ok ? 'connected' : 'error',
+                databaseTitle: result.ok ? result.title : undefined,
+                errorMessage: !result.ok ? result.error : undefined,
+              }));
+            });
+          }
         }
         break;
       }
@@ -1264,7 +1355,7 @@ export const App: React.FC = () => {
         break;
       }
     }
-  }, [mode, timerState, countdownState, todoCountdown, todos, config, exit, showDoneHistory, doneHistory]);
+  }, [mode, timerState, countdownState, todoCountdown, todos, config, exit, showDoneHistory, showNotionStatus, doneHistory]);
 
   const modeNames: Record<number, string> = {
     [Mode.Clock]: `${icons.clockMode} Clock`,
@@ -1314,9 +1405,11 @@ export const App: React.FC = () => {
       {/* Separator */}
       <Box paddingX={1}><Text color="gray">{icons.hLine.repeat(50)}</Text></Box>
 
-      {/* Help, Done History, or TODO list */}
+      {/* Help, Notion Status, Done History, or TODO list */}
       {showHelp ? (
         <HelpView />
+      ) : showNotionStatus ? (
+        <NotionStatusView {...notionStatusProps} />
       ) : showDoneHistory ? (
         <DoneHistoryView
           records={doneHistory}

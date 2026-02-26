@@ -152,6 +152,12 @@ export const COMMANDS: CommandDef[] = [
     usage: '/back',
     description: 'Return from history view to TODO list',
   },
+  {
+    name: 'notion',
+    aliases: ['nt'],
+    usage: '/notion [setup <token> <db_id>]',
+    description: 'Show Notion sync status / configure integration',
+  },
 ];
 
 /**

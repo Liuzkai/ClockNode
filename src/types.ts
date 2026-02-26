@@ -179,3 +179,23 @@ export interface NotificationMessage {
   text: string;
   timestamp: number;
 }
+
+/** Notion integration configuration (stored separately in ~/.clocknode/notion.json) */
+export interface NotionConfig {
+  token: string;
+  databaseId: string;
+}
+
+/** A single local↔Notion sync mapping entry */
+export interface SyncEntry {
+  localId: string;
+  notionPageId: string;
+  lastLocalHash: string;
+  lastNotionEditedTime: string;
+}
+
+/** Sync mapping store (stored in ~/.clocknode/notion_sync.json) */
+export interface SyncMap {
+  entries: SyncEntry[];
+  lastSyncAt?: string;
+}
