@@ -139,6 +139,25 @@ export function setTag(todos: TodoItem[], index: number, tag: string): TodoItem[
   return newTodos;
 }
 
+export function removeTag(todos: TodoItem[], index: number, tag: string): TodoItem[] {
+  if (index < 1 || index > todos.length) return todos;
+  const newTodos = [...todos];
+  const item = { ...newTodos[index - 1] };
+  item.tags = item.tags.filter(t => t !== tag);
+  newTodos[index - 1] = item;
+  return newTodos;
+}
+
+export function renameTag(todos: TodoItem[], index: number, oldTag: string, newTag: string): TodoItem[] {
+  if (index < 1 || index > todos.length) return todos;
+  const newTodos = [...todos];
+  const item = { ...newTodos[index - 1] };
+  item.tags = item.tags.map(t => t === oldTag ? newTag : t);
+  item.tags = [...new Set(item.tags)];
+  newTodos[index - 1] = item;
+  return newTodos;
+}
+
 export function setPriority(todos: TodoItem[], index: number, priority: Priority): TodoItem[] {
   if (index < 1 || index > todos.length) return todos;
   const newTodos = [...todos];

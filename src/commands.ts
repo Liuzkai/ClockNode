@@ -113,14 +113,14 @@ export const COMMANDS: CommandDef[] = [
   {
     name: 'tag',
     aliases: ['t'],
-    usage: '/tag <N|*> <tag>',
-    description: 'Add tag to TODO item (* = all items)',
+    usage: '/tag <N|*> <tag|-tag|old:new>',
+    description: 'Add, remove (-tag), or rename (old:new) tag',
   },
   {
     name: 'priority',
     aliases: ['p'],
-    usage: '/priority <N|*> <h|m|l>',
-    description: 'Set priority (* = all items)',
+    usage: '/priority <N|*> <h|m|l|none|->',
+    description: 'Set or clear (-/none) priority (* = all items)',
   },
   {
     name: 'sort',
